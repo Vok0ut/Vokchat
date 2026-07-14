@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A0A0A">
+<title>Vok Chat</title>
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
+
+<style>
+  :root{
+    --bg:#0A0A0A;
+    --surface:#111111;
+    --panel:rgba(10,10,10,0.88);
+    --ink:#E8E8E8;
+    --ink-soft:#7A7A7A;
+    --line:#2E2E2E;
+    --line-bright:#4A4A4A;
+    --mono:'JetBrains Mono','Cascadia Code','SF Mono',ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--bg);color:var(--ink);font-family:var(--mono);
+    font-size:13.5px;line-height:1.65;
+    display:flex;flex-direction:column;
+    padding-top:env(safe-area-inset-top);
+  }
+  ::selection{background:var(--ink);color:var(--bg)}
+
+  /* ---------- Fondo + scanlines ---------- */
+  .bg-layer{
+    position:fixed;inset:0;z-index:-2;pointer-events:none;
+    background:url('bg.jpg') center/cover no-repeat;
+    opacity:0.6;
+  }
+  .scanlines{
+    position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0.28) 0 1px, transparent 1px 3px);
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;border-bottom:1px solid var(--line);
+    background:var(--panel);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    position:sticky;top:0;z-index:20;
+  }
+  .brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+  .brand h1{
+    font-size:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+    white-space:nowrap;
+  }
+  .brand h1::before{content:"┌─[ ";color:var(--ink-soft);font-weight:400}
+  .brand h1::after{content:" ]";color:var(--ink-soft);font-weight:400}
+  .brand .model-tag{
+    font-size:10px;color:var(--ink-soft);letter-spacing:0.04em;
+    max-width:32vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .icon-btn{
+    background:transparent;border:1px solid var(--line);border-radius:0;
+    width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;color:var(--ink);transition:border-color 150ms,background 150ms;
+  }
+  .icon-btn:active{background:var(--ink);color:var(--bg)}
+  .header-actions{display:flex;gap:8px}
+
+  /* ---------- Chat ---------- */
+  main{flex:1;overflow-y:auto;padding:18px 14px 12px;scroll-behavior:smooth}
+  .msg{margin-bottom:16px;animation:rise 300ms steps(6)}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .msg .role{
+    font-size:9.5px;letter-spacing:0.12em;color:var(--ink-soft);margin-bottom:3px;
+    text-transform:uppercase;
+  }
+  .msg .role::before{content:"["}
+  .msg .role::after{content:"]"}
+  .msg.user{text-align:right}
+  .msg.user .role{text-align:right}
+  .msg.user .body{
+    background:var(--ink);color:var(--bg);
+    padding:9px 13px;display:inline-block;max-width:90%;text-align:left;
+    border:1px solid var(--ink);
+    white-space:pre-wrap;word-break:break-word;
+  }
+  .msg.assistant .body{
+    background:var(--panel);border:1px solid var(--line);
+    border-left:2px solid var(--ink);
+    padding:10px 13px;
+    white-space:pre-wrap;word-break:break-word;
+    backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  }
+  .msg.assistant .body code{
+    font-size:12.5px;background:var(--surface);
+    border:1px solid var(--line);padding:1px 5px;color:var(--ink);
+  }
+  .msg.assistant .body pre{
+    font-size:12px;background:#050505;
+    border:1px solid var(--line);padding:12px;
+    overflow-x:auto;margin:8px 0;white-space:pre;
+  }
+  .msg.tool .body{
+    font-size:11px;color:var(--ink-soft);background:var(--panel);
+    border:1px dashed var(--line-bright);padding:7px 11px;
+    white-space:pre-wrap;word-break:break-all;max-height:140px;overflow-y:auto;
+  }
+  .msg.system-note{text-align:center}
+  .msg.system-note .body{
+    font-size:11px;color:var(--ink-soft);display:inline-block;
+    background:var(--panel);padding:3px 12px;border:1px solid var(--line);
+  }
+  .empty-state{
+    height:100%;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;gap:14px;color:var(--ink-soft);
+  }
+  .empty-state pre.logo{
+    font-size:11px;line-height:1.35;color:var(--ink);
+    background:var(--panel);border:1px solid var(--line);padding:14px 18px;
+    text-align:left;
+  }
+  .empty-state p{
+    font-size:11.5px;max-width:280px;background:var(--panel);
+    border:1px solid var(--line);padding:10px 14px;
+  }
+  .empty-state kbd{
+    font-size:10.5px;border:1px solid var(--line-bright);
+    background:var(--surface);padding:1px 6px;color:var(--ink);
+  }
+
+  /* cursor parpadeante */
+  .typing{display:inline-block}
+  .typing::after{
+    content:"▌";animation:blink 0.9s steps(2) infinite;color:var(--ink);
+  }
+  @keyframes blink{50%{opacity:0}}
+
+  /* ---------- Composer ---------- */
+  .composer{
+    border-top:1px solid var(--line);
+    padding:12px 14px calc(12px + env(safe-area-inset-bottom));
+    background:var(--panel);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    display:flex;gap:10px;align-items:flex-end;position:relative;
+  }
+  .composer::before{
+    content:">";position:absolute;left:26px;bottom:calc(22px + env(safe-area-inset-bottom));
+    color:var(--ink-soft);pointer-events:none;z-index:1;
+  }
+  .composer textarea{
+    flex:1;border:1px solid var(--line);border-radius:0;resize:none;
+    font-family:var(--mono);font-size:13.5px;line-height:1.5;
+    padding:10px 12px 10px 28px;max-height:130px;background:var(--surface);
+    color:var(--ink);outline:none;caret-color:var(--ink);
+  }
+  .composer textarea:focus{border-color:var(--ink)}
+  .composer textarea::placeholder{color:#4A4A4A}
+  .send-btn{
+    background:var(--ink);color:var(--bg);border:1px solid var(--ink);border-radius:0;
+    width:42px;height:42px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;flex-shrink:0;font-family:var(--mono);
+  }
+  .send-btn:active{background:var(--bg);color:var(--ink)}
+  .send-btn:disabled{background:var(--surface);color:var(--ink-soft);border-color:var(--line)}
+
+  /* ---------- Sheets ---------- */
+  .sheet-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:40;
+    opacity:0;pointer-events:none;transition:opacity 200ms;
+  }
+  .sheet-backdrop.open{opacity:1;pointer-events:auto}
+  .sheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--bg);
+    border-top:1px solid var(--line-bright);
+    max-height:88vh;overflow-y:auto;padding:20px 18px calc(28px + env(safe-area-inset-bottom));
+    transform:translateY(105%);transition:transform 280ms cubic-bezier(0.16,1,0.3,1);
+  }
+  .sheet h2{
+    font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;
+  }
+  .sheet h2::before{content:"── ";color:var(--ink-soft)}
+  .sheet h2::after{content:" ──";color:var(--ink-soft)}
+  .sheet.open{transform:none}
+  .sheet .sub{font-size:11px;color:var(--ink-soft);margin-bottom:18px}
+  .field{margin-bottom:16px}
+  .field label{
+    display:block;font-size:10px;text-transform:uppercase;
+    letter-spacing:0.08em;color:var(--ink-soft);margin-bottom:6px;
+  }
+  .field input{
+    width:100%;border:1px solid var(--line);border-radius:0;padding:10px 12px;
+    font-family:var(--mono);font-size:12.5px;background:var(--surface);color:var(--ink);outline:none;
+  }
+  .field input:focus{border-color:var(--ink)}
+  .field .hint{font-size:10.5px;color:var(--ink-soft);margin-top:5px;line-height:1.5}
+  .divider{border:none;border-top:1px dashed var(--line-bright);margin:20px 0}
+  .btn-primary{
+    width:100%;background:var(--ink);color:var(--bg);border:1px solid var(--ink);border-radius:0;
+    padding:12px;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+    cursor:pointer;font-family:var(--mono);
+  }
+  .btn-primary:active{background:var(--bg);color:var(--ink)}
+  .btn-ghost{
+    width:100%;background:transparent;color:var(--ink-soft);border:1px solid var(--line);
+    border-radius:0;padding:10px;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;
+    cursor:pointer;margin-top:10px;font-family:var(--mono);
+  }
+  .status-row{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+  .badge{
+    font-size:9.5px;text-transform:uppercase;letter-spacing:0.08em;
+    padding:4px 10px;border:1px solid var(--line);color:var(--ink-soft);border-radius:0;
+  }
+  .badge.ok{border-color:var(--ink);color:var(--ink)}
+  .badge.ok::before{content:"■ "}
+  .badge::before{content:"□ "}
+  details.help{margin-top:14px}
+  details.help summary{
+    font-size:10.5px;text-transform:uppercase;letter-spacing:0.08em;
+    color:var(--ink-soft);cursor:pointer;list-style:none;
+  }
+  details.help summary::before{content:"[+] "}
+  details.help[open] summary::before{content:"[-] "}
+  details.help pre{
+    font-size:10.5px;background:#050505;border:1px solid var(--line);
+    padding:12px;overflow-x:auto;margin-top:8px;line-height:1.5;color:var(--ink);
+  }
+
+  /* ---------- Historial ---------- */
+  .conv-item{
+    display:flex;align-items:center;gap:10px;
+    border-bottom:1px dashed var(--line-bright);padding:12px 2px;
+  }
+  .conv-info{flex:1;min-width:0;cursor:pointer}
+  .conv-title{
+    font-size:12.5px;color:var(--ink);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .conv-title::before{content:"> ";color:var(--ink-soft)}
+  .conv-date{
+    font-size:9.5px;color:var(--ink-soft);
+    text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;
+  }
+  .conv-del{
+    background:transparent;border:1px solid var(--line);border-radius:0;
+    width:30px;height:30px;color:var(--ink-soft);font-size:15px;
+    cursor:pointer;flex-shrink:0;line-height:1;font-family:var(--mono);
+  }
+  .conv-del:active{background:var(--ink);color:var(--bg)}
+  .conv-empty{font-size:12px;color:var(--ink-soft);padding:16px 0}
+
+  .empty-state pre.logo{position:relative}
+  .logo .bot{
+    color:#FFFFFF;
+    text-shadow:0 0 6px rgba(255,255,255,0.45), 0 0 18px rgba(255,255,255,0.18);
+    animation:glow 2.6s ease-in-out infinite;
+    display:inline-block;
+  }
+  .logo .wordmark{
+    display:block;margin-top:8px;color:#FFFFFF;font-weight:700;
+    letter-spacing:0.1em;
+    text-shadow:0 0 8px rgba(255,255,255,0.3);
+  }
+  .logo .ver{display:block;color:var(--ink-soft);font-size:10px;margin-top:2px}
+  @keyframes glow{
+    0%,100%{text-shadow:0 0 6px rgba(255,255,255,0.45), 0 0 18px rgba(255,255,255,0.18)}
+    50%{text-shadow:0 0 10px rgba(255,255,255,0.7), 0 0 26px rgba(255,255,255,0.3)}
+  }
+  @media (prefers-reduced-motion: reduce){.logo .bot{animation:none}}
+
+</style>
+</head>
+<body>
+<div class="bg-layer" aria-hidden="true"></div>
+<div class="scanlines" aria-hidden="true"></div>
+
+<header>
+  <div class="brand">
+    <h1>Vok Chat</h1>
+    <span class="model-tag" id="modelTag">sin configurar</span>
+  </div>
+  <div class="header-actions">
+    <button class="icon-btn" id="historyBtn" title="Conversaciones" aria-label="Conversaciones">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+    </button>
+    <button class="icon-btn" id="clearBtn" title="Nueva conversación" aria-label="Nueva conversación">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <button class="icon-btn" id="settingsBtn" title="Ajustes" aria-label="Ajustes">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="chat">
+  <div class="empty-state" id="emptyState">
+    <pre class="logo"><span class="bot">      ▄
+ ╔════█════╗
+ ║ ▀▀   ▀▀ ║
+▄╣   ▄▄▄   ╠▄
+ ╚═════════╝</span>
+<span class="wordmark">V O K _ C H A T</span>
+<span class="ver">v1.4 // terminal</span></pre>
+    <p>Configura tu API key en <kbd>AJUSTES</kbd>. Con un token de GitHub el modelo puede leer y editar tus repos.</p>
+  </div>
+</main>
+
+<div class="composer">
+  <textarea id="input" rows="1" placeholder="Escribe un mensaje…"></textarea>
+  <button class="send-btn" id="sendBtn" aria-label="Enviar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+  </button>
+</div>
+
+<div class="sheet-backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet">
+  <h2>Ajustes</h2>
+  <p class="sub">Todo se guarda solo en este dispositivo.</p>
+
+  <div class="status-row">
+    <span class="badge" id="badgeNim">NIM · sin key</span>
+    <span class="badge" id="badgeGh">GitHub · off</span>
+  </div>
+
+  <div class="field">
+    <label for="nimKey">NVIDIA NIM · API key</label>
+    <input id="nimKey" type="password" placeholder="nvapi-…" autocomplete="off">
+    <div class="hint">La consigues gratis en build.nvidia.com</div>
+  </div>
+
+  <div class="field">
+    <label for="model">Modelo</label>
+    <input id="model" list="modelList" placeholder="meta/llama-3.1-70b-instruct" autocomplete="off">
+    <datalist id="modelList">
+      <option value="meta/llama-3.1-405b-instruct">
+      <option value="meta/llama-3.1-70b-instruct">
+      <option value="meta/llama-3.3-70b-instruct">
+      <option value="mistralai/mistral-large-2-instruct">
+      <option value="qwen/qwen2.5-coder-32b-instruct">
+      <option value="deepseek-ai/deepseek-r1">
+      <option value="nvidia/llama-3.1-nemotron-70b-instruct">
+    </datalist>
+    <div class="hint">Para usar las herramientas de GitHub, elige un modelo con function calling (Llama 3.1/3.3, Mistral Large).</div>
+  </div>
+
+  <div class="field">
+    <label for="proxy">Proxy CORS (necesario para NIM)</label>
+    <input id="proxy" type="url" placeholder="https://tu-worker.workers.dev" autocomplete="off">
+    <div class="hint">La API de NVIDIA no permite llamadas directas desde el navegador. Despliega el mini-proxy de abajo (Cloudflare Worker gratis) y pega aquí su URL.</div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="field">
+    <label for="ghToken">GitHub · Personal Access Token</label>
+    <input id="ghToken" type="password" placeholder="ghp_… o github_pat_…" autocomplete="off">
+    <div class="hint">Con permiso <b>repo</b>. Activa herramientas: listar repos, leer archivos, buscar código y crear/editar archivos (con confirmación).</div>
+  </div>
+
+  <button class="btn-primary" id="saveBtn">Guardar</button>
+  <button class="btn-ghost" id="wipeBtn">Borrar claves de este dispositivo</button>
+
+  <details class="help">
+    <summary>Código del proxy (Cloudflare Worker)</summary>
+    <pre>export default {
+  async fetch(req) {
+    if (req.method === "OPTIONS")
+      return new Response(null, { headers: cors() });
+    const url = "https://integrate.api.nvidia.com/v1/chat/completions";
+    const r = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": req.headers.get("Authorization") || ""
+      },
+      body: req.body
+    });
+    const res = new Response(r.body, r);
+    Object.entries(cors()).forEach(([k,v]) => res.headers.set(k,v));
+    return res;
+  }
+};
+function cors() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS"
+  };
+}</pre>
+  </details>
+</div>
+
+<div class="sheet" id="historySheet">
+  <h2>Conversaciones</h2>
+  <p class="sub">Guardadas en este dispositivo. Toca una para retomarla.</p>
+  <div id="convList"></div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------------- Estado ---------------- */
+const CFG_KEY = "nimchat.cfg.v1";
+const CONV_KEY = "nimchat.convs.v1";
+let memoryCfg = {};                 // fallback si no hay localStorage
+let messages = [];                  // historial OpenAI-style
+let convId = null;                  // conversación activa
+let busy = false;
+
+const convStore = {
+  all() {
+    try { return JSON.parse(localStorage.getItem(CONV_KEY)) || []; }
+    catch { return []; }
+  },
+  saveAll(list) {
+    try { localStorage.setItem(CONV_KEY, JSON.stringify(list)); } catch {}
+  }
+};
+
+function persistConv(){
+  if (!messages.length) return;
+  if (!convId) convId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const firstUser = messages.find(m => m.role === "user");
+  const title = firstUser ? String(firstUser.content).slice(0, 48) : "Sin título";
+  const list = convStore.all();
+  const conv = { id: convId, title, messages, updatedAt: Date.now() };
+  const idx = list.findIndex(c => c.id === convId);
+  if (idx >= 0) list[idx] = conv; else list.unshift(conv);
+  list.sort((a, b) => b.updatedAt - a.updatedAt);
+  convStore.saveAll(list.slice(0, 50));   // máximo 50 conversaciones
+}
+
+const store = {
+  get() {
+    try { return JSON.parse(localStorage.getItem(CFG_KEY)) || memoryCfg; }
+    catch { return memoryCfg; }
+  },
+  set(cfg) {
+    memoryCfg = cfg;
+    try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch {}
+  },
+  wipe() {
+    memoryCfg = {};
+    try { localStorage.removeItem(CFG_KEY); } catch {}
+  }
+};
+
+/* ---------------- DOM ---------------- */
+const $ = id => document.getElementById(id);
+const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn");
+const sheet = $("sheet"), backdrop = $("backdrop");
+
+function openSheet(){ loadCfgToForm(); sheet.classList.add("open"); backdrop.classList.add("open"); }
+function closeSheet(){ sheet.classList.remove("open"); backdrop.classList.remove("open"); closeHistory(); }
+$("settingsBtn").onclick = openSheet;
+backdrop.onclick = closeSheet;
+
+const historySheet = $("historySheet");
+function openHistory(){ renderHistory(); historySheet.classList.add("open"); backdrop.classList.add("open"); }
+function closeHistory(){ historySheet.classList.remove("open"); if (!sheet.classList.contains("open")) backdrop.classList.remove("open"); }
+$("historyBtn").onclick = openHistory;
+
+function renderHistory(){
+  const box = $("convList");
+  box.innerHTML = "";
+  const list = convStore.all();
+  if (!list.length) { box.appendChild(el("p", "conv-empty", "No hay conversaciones guardadas todavía.")); return; }
+  list.forEach(c => {
+    const row = el("div", "conv-item");
+    const info = el("div", "conv-info");
+    info.appendChild(el("div", "conv-title", c.title));
+    info.appendChild(el("div", "conv-date", new Date(c.updatedAt).toLocaleString()));
+    info.onclick = () => loadConv(c.id);
+    const del = el("button", "conv-del", "×");
+    del.setAttribute("aria-label", "Borrar conversación");
+    del.onclick = e => {
+      e.stopPropagation();
+      if (!confirm("¿Borrar esta conversación?")) return;
+      convStore.saveAll(convStore.all().filter(x => x.id !== c.id));
+      if (convId === c.id) { convId = null; messages = []; chat.innerHTML = ""; }
+      renderHistory();
+    };
+    row.appendChild(info); row.appendChild(del);
+    box.appendChild(row);
+  });
+}
+
+function loadConv(id){
+  const c = convStore.all().find(x => x.id === id);
+  if (!c) return;
+  convId = c.id;
+  messages = c.messages;
+  chat.innerHTML = "";
+  messages.forEach(m => {
+    if (m.role === "user") addMsg("user", m.content);
+    else if (m.role === "assistant" && m.tool_calls && m.tool_calls.length)
+      m.tool_calls.forEach(tc => addMsg("tool", "▸ " + tc.function.name + " " + (tc.function.arguments || "")));
+    else if (m.role === "assistant" && m.content) addMsg("assistant", m.content);
+  });
+  closeHistory();
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function loadCfgToForm(){
+  const c = store.get();
+  $("nimKey").value = c.nimKey || "";
+  $("model").value = c.model || "";
+  $("proxy").value = c.proxy || "";
+  $("ghToken").value = c.ghToken || "";
+  refreshBadges(c);
+}
+function refreshBadges(c){
+  const bn = $("badgeNim"), bg = $("badgeGh");
+  bn.textContent = c.nimKey ? "NIM · ok" : "NIM · sin key";
+  bn.classList.toggle("ok", !!c.nimKey);
+  bg.textContent = c.ghToken ? "GitHub · on" : "GitHub · off";
+  bg.classList.toggle("ok", !!c.ghToken);
+  $("modelTag").textContent = c.model || "sin configurar";
+}
+$("saveBtn").onclick = () => {
+  const c = {
+    nimKey: $("nimKey").value.trim(),
+    model: $("model").value.trim() || "meta/llama-3.1-70b-instruct",
+    proxy: $("proxy").value.trim().replace(/\/$/, ""),
+    ghToken: $("ghToken").value.trim()
+  };
+  store.set(c);
+  refreshBadges(c);
+  closeSheet();
+};
+$("wipeBtn").onclick = () => {
+  if (confirm("¿Borrar todas las claves guardadas en este dispositivo?")) {
+    store.wipe(); loadCfgToForm();
+  }
+};
+refreshBadges(store.get());
+
+/* ---------------- UI de mensajes ---------------- */
+function el(tag, cls, text){
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+function hideEmpty(){ const e = $("emptyState"); if (e) e.remove(); }
+
+function renderMarkdownLite(target, text){
+  // Solo bloques de código y código inline; el resto texto plano.
+  target.textContent = "";
+  const parts = String(text).split(/```/);
+  parts.forEach((part, i) => {
+    if (i % 2 === 1) {
+      const pre = el("pre");
+      pre.textContent = part.replace(/^[a-zA-Z0-9+-]*\n/, "");
+      target.appendChild(pre);
+    } else {
+      part.split(/(`[^`\n]+`)/).forEach(seg => {
+        if (/^`[^`\n]+`$/.test(seg)) target.appendChild(el("code", "", seg.slice(1, -1)));
+        else target.appendChild(document.createTextNode(seg));
+      });
+    }
+  });
+}
+
+function addMsg(role, text){
+  hideEmpty();
+  const wrap = el("div", "msg " + role);
+  const labels = { user: "USER", assistant: "MODEL", tool: "GITHUB", "system-note": "" };
+  if (labels[role]) wrap.appendChild(el("div", "role", labels[role]));
+  const body = el("div", "body");
+  if (role === "assistant") renderMarkdownLite(body, text);
+  else body.textContent = text;
+  wrap.appendChild(body);
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+  return body;
+}
+
+function showTyping(){
+  hideEmpty();
+  const wrap = el("div", "msg assistant"); wrap.id = "typingMsg";
+  wrap.appendChild(el("div", "role", "MODEL"));
+  const body = el("div", "body");
+  body.appendChild(el("span", "typing"));
+  wrap.appendChild(body);
+  chat.appendChild(wrap); chat.scrollTop = chat.scrollHeight;
+}
+function hideTyping(){ const t = $("typingMsg"); if (t) t.remove(); }
+
+$("clearBtn").onclick = () => {
+  if (!messages.length || confirm("¿Empezar conversación nueva? La actual queda guardada en el historial.")) {
+    persistConv();
+    convId = null; messages = []; chat.innerHTML = "";
+    addMsg("system-note", "── nueva sesión ──");
+  }
+};
+
+/* ---------------- Herramientas GitHub ---------------- */
+const GH = "https://api.github.com";
+function ghHeaders(){
+  return {
+    "Authorization": "Bearer " + store.get().ghToken,
+    "Accept": "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28"
+  };
+}
+async function ghFetch(path, opts = {}){
+  const r = await fetch(GH + path, { ...opts, headers: { ...ghHeaders(), ...(opts.headers || {}) } });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error("GitHub " + r.status + ": " + (data.message || "error"));
+  return data;
+}
+function b64decodeUtf8(b64){
+  return decodeURIComponent(Array.from(atob(b64.replace(/\n/g, "")), c =>
+    "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join(""));
+}
+function b64encodeUtf8(str){
+  return btoa(Array.from(new TextEncoder().encode(str), b => String.fromCharCode(b)).join(""));
+}
+
+const toolDefs = [
+  { type:"function", function:{ name:"list_repos",
+    description:"Lista los repositorios del usuario autenticado (nombre, descripcion, lenguaje, ultima actualizacion).",
+    parameters:{ type:"object", properties:{}, required:[] } } },
+  { type:"function", function:{ name:"list_directory",
+    description:"Lista el contenido de un directorio de un repositorio.",
+    parameters:{ type:"object", properties:{
+      repo:{ type:"string", description:"formato owner/nombre" },
+      path:{ type:"string", description:"ruta del directorio, vacio para la raiz" }
+    }, required:["repo"] } } },
+  { type:"function", function:{ name:"get_file",
+    description:"Lee el contenido de un archivo de texto de un repositorio.",
+    parameters:{ type:"object", properties:{
+      repo:{ type:"string", description:"formato owner/nombre" },
+      path:{ type:"string", description:"ruta del archivo" }
+    }, required:["repo","path"] } } },
+  { type:"function", function:{ name:"search_code",
+    description:"Busca codigo en GitHub. Se puede acotar con qualifiers como repo:owner/nombre o user:usuario.",
+    parameters:{ type:"object", properties:{
+      query:{ type:"string", description:"consulta de busqueda" }
+    }, required:["query"] } } },
+  { type:"function", function:{ name:"create_or_update_file",
+    description:"Crea o actualiza un archivo en un repositorio haciendo commit. Requiere confirmacion del usuario.",
+    parameters:{ type:"object", properties:{
+      repo:{ type:"string", description:"formato owner/nombre" },
+      path:{ type:"string", description:"ruta del archivo" },
+      content:{ type:"string", description:"contenido completo nuevo del archivo" },
+      message:{ type:"string", description:"mensaje del commit" },
+      branch:{ type:"string", description:"rama, opcional" }
+    }, required:["repo","path","content","message"] } } }
+];
+
+async function runTool(name, args){
+  switch (name) {
+    case "list_repos": {
+      const repos = await ghFetch("/user/repos?per_page=60&sort=updated");
+      return repos.map(r => ({
+        full_name: r.full_name, private: r.private, language: r.language,
+        description: r.description, updated_at: r.updated_at, default_branch: r.default_branch
+      }));
+    }
+    case "list_directory": {
+      const data = await ghFetch("/repos/" + args.repo + "/contents/" + (args.path || ""));
+      return (Array.isArray(data) ? data : [data]).map(i => ({ name: i.name, path: i.path, type: i.type, size: i.size }));
+    }
+    case "get_file": {
+      const f = await ghFetch("/repos/" + args.repo + "/contents/" + args.path);
+      if (f.size > 120000) return { error: "Archivo demasiado grande (" + f.size + " bytes)" };
+      return { path: f.path, content: b64decodeUtf8(f.content) };
+    }
+    case "search_code": {
+      const d = await ghFetch("/search/code?per_page=10&q=" + encodeURIComponent(args.query));
+      return d.items.map(i => ({ repo: i.repository.full_name, path: i.path, url: i.html_url }));
+    }
+    case "create_or_update_file": {
+      const ok = confirm("El modelo quiere hacer commit en:\n\n" + args.repo + " → " + args.path +
+        "\n\nMensaje: " + args.message + "\n\n¿Permitir?");
+      if (!ok) return { cancelled: true, note: "El usuario rechazo el commit." };
+      let sha;
+      try { sha = (await ghFetch("/repos/" + args.repo + "/contents/" + args.path)).sha; } catch {}
+      const body = { message: args.message, content: b64encodeUtf8(args.content) };
+      if (sha) body.sha = sha;
+      if (args.branch) body.branch = args.branch;
+      const res = await ghFetch("/repos/" + args.repo + "/contents/" + args.path, {
+        method: "PUT", body: JSON.stringify(body)
+      });
+      return { committed: true, sha: res.commit && res.commit.sha, url: res.content && res.content.html_url };
+    }
+    default:
+      return { error: "Herramienta desconocida: " + name };
+  }
+}
+
+/* ---------------- Llamada al modelo ---------------- */
+function systemPrompt(cfg){
+  let p = "Eres un asistente conciso y util. Responde en el idioma del usuario. " +
+          "Usa bloques de codigo con ``` cuando muestres codigo.";
+  if (cfg.ghToken) p += " Tienes herramientas para trabajar con los repositorios de GitHub del usuario. " +
+    "Usalas cuando la pregunta lo requiera en lugar de inventar contenido de los repos.";
+  return p;
+}
+
+async function callModel(cfg){
+  const url = (cfg.proxy || "https://integrate.api.nvidia.com/v1/chat/completions");
+  const endpoint = cfg.proxy ? cfg.proxy : url; // el worker ya apunta a /chat/completions
+  const body = {
+    model: cfg.model,
+    max_tokens: 2048,
+    temperature: 0.6,
+    messages: [{ role: "system", content: systemPrompt(cfg) }, ...messages]
+  };
+  if (cfg.ghToken) body.tools = toolDefs;
+
+  const r = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.nimKey },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    throw new Error("API " + r.status + ": " + t.slice(0, 300));
+  }
+  const data = await r.json();
+  return data.choices[0].message;
+}
+
+async function agentLoop(cfg){
+  for (let step = 0; step < 6; step++) {
+    const msg = await callModel(cfg);
+    if (msg.tool_calls && msg.tool_calls.length) {
+      messages.push(msg);
+      for (const tc of msg.tool_calls) {
+        let args = {};
+        try { args = JSON.parse(tc.function.arguments || "{}"); } catch {}
+        addMsg("tool", "▸ " + tc.function.name + " " + JSON.stringify(args));
+        let result;
+        try { result = await runTool(tc.function.name, args); }
+        catch (e) { result = { error: String(e.message || e) }; }
+        messages.push({
+          role: "tool", tool_call_id: tc.id,
+          content: JSON.stringify(result).slice(0, 24000)
+        });
+      }
+      continue;
+    }
+    messages.push({ role: "assistant", content: msg.content || "" });
+    return msg.content || "";
+  }
+  return "Se alcanzo el limite de pasos de herramientas.";
+}
+
+/* ---------------- Enviar ---------------- */
+async function send(){
+  const text = input.value.trim();
+  if (!text || busy) return;
+  const cfg = store.get();
+  if (!cfg.nimKey) { openSheet(); return; }
+  if (!cfg.proxy) {
+    addMsg("system-note", "Aviso: sin proxy CORS la API de NVIDIA suele bloquear el navegador. Configuralo en Ajustes si falla.");
+  }
+  input.value = ""; autoGrow();
+  busy = true; sendBtn.disabled = true;
+
+  addMsg("user", text);
+  messages.push({ role: "user", content: text });
+  showTyping();
+
+  try {
+    const reply = await agentLoop(cfg);
+    hideTyping();
+    addMsg("assistant", reply);
+  } catch (e) {
+    hideTyping();
+    addMsg("system-note", "Error: " + (e.message || e));
+    messages.pop(); // deja el historial coherente
+  } finally {
+    persistConv();
+    busy = false; sendBtn.disabled = false;
+  }
+}
+
+sendBtn.onclick = send;
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+function autoGrow(){
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 130) + "px";
+}
+input.addEventListener("input", autoGrow);
+
+})();
+</script>
+</body>
+</html>
