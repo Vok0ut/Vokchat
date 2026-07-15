@@ -317,6 +317,8 @@
     background:var(--surface);cursor:pointer;
   }
   .btn-ghost.mini{width:auto;margin-top:0;padding:9px 14px}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .btn-row .btn-ghost.mini{flex:1}
   input[type=range]{
     -webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;
     background:var(--line-bright);outline:none;
@@ -573,6 +575,14 @@ function cors() {
   <div class="sheet-handle"></div>
   <h2>Conversaciones</h2>
   <p class="sub">Guardadas en este dispositivo. Toca una para retomarla.</p>
+
+  <div class="btn-row">
+    <button class="btn-ghost mini" id="exportBtn">Exportar historial</button>
+    <button class="btn-ghost mini" id="importBtn">Importar historial</button>
+    <input type="file" id="importFile" accept="application/json" hidden>
+  </div>
+  <div class="hint" style="margin-bottom:16px">Se descarga un .json con tus conversaciones (sin claves ni tokens). Guárdalo donde quieras como copia de seguridad.</div>
+
   <div id="convList"></div>
 </div>
 
@@ -684,6 +694,7 @@ function applyLook(look){
 /* ================= Estado ================= */
 const CFG_KEY = "nimchat.cfg.v1";
 const CONV_KEY = "nimchat.convs.v1";
+const MAX_CONVS = 500;
 let memoryCfg = {};
 let messages = [];
 let convId = null;
@@ -704,7 +715,7 @@ function persistConv(){
   const idx = list.findIndex(c => c.id === convId);
   if (idx >= 0) list[idx] = conv; else list.unshift(conv);
   list.sort((a, b) => b.updatedAt - a.updatedAt);
-  convStore.saveAll(list.slice(0, 50));
+  convStore.saveAll(list.slice(0, MAX_CONVS));
 }
 
 const store = {
@@ -936,6 +947,62 @@ function loadConv(id){
   closeHistory();
   chat.scrollTop = chat.scrollHeight;
 }
+
+/* ---- Exportar / importar historial (backup manual, sin claves) ---- */
+function pad2(n){ return String(n).padStart(2, "0"); }
+
+function exportHistory(){
+  const list = convStore.all();
+  const payload = { app: "vokchat", version: 1, exportedAt: Date.now(), conversations: list };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const d = new Date();
+  const name = `vokchat-historial-${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}.json`;
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function isValidConv(c){
+  return c && typeof c.id === "string" && typeof c.title === "string" &&
+    Array.isArray(c.messages) && typeof c.updatedAt === "number";
+}
+
+function importHistoryFile(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try { data = JSON.parse(String(reader.result)); }
+    catch { alert("Archivo no válido: no es JSON."); return; }
+    const incoming = Array.isArray(data) ? data : data.conversations;
+    if (!Array.isArray(incoming)) { alert("Archivo no válido: no contiene conversaciones."); return; }
+    const valid = incoming.filter(isValidConv);
+    if (!valid.length) { alert("El archivo no contiene conversaciones reconocibles."); return; }
+
+    const byId = new Map(convStore.all().map(c => [c.id, c]));
+    let added = 0, updated = 0;
+    valid.forEach(c => {
+      const existing = byId.get(c.id);
+      if (!existing) { byId.set(c.id, c); added++; }
+      else if (c.updatedAt > existing.updatedAt) { byId.set(c.id, c); updated++; }
+    });
+    const merged = Array.from(byId.values()).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, MAX_CONVS);
+    convStore.saveAll(merged);
+    renderHistory();
+    alert(`Historial importado: ${added} nuevas, ${updated} actualizadas.`);
+  };
+  reader.onerror = () => alert("No se pudo leer el archivo.");
+  reader.readAsText(file);
+}
+
+$("exportBtn").onclick = exportHistory;
+$("importBtn").onclick = () => $("importFile").click();
+$("importFile").onchange = e => {
+  const f = e.target.files && e.target.files[0];
+  if (f) importHistoryFile(f);
+  e.target.value = "";
+};
 
 /* ================= Herramientas GitHub ================= */
 const GH = "https://api.github.com";
