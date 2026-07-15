@@ -478,9 +478,14 @@
     </div>
 
     <div class="field" id="bgUrlField" hidden>
-      <label>URL de la imagen de fondo</label>
-      <input id="bgUrl" type="url" placeholder="https://…/fondo.jpg" autocomplete="off">
-      <div class="hint">Pega la URL de cualquier imagen. Se guarda solo en este dispositivo.</div>
+      <label>Imagen de fondo</label>
+      <div class="accent-row">
+        <button class="btn-ghost mini" id="bgFileBtn" type="button">Elegir del dispositivo…</button>
+        <button class="btn-ghost mini" id="bgFileClear" type="button">Quitar</button>
+      </div>
+      <input id="bgFile" type="file" accept="image/*" hidden>
+      <div class="hint" id="bgFileName">Ninguna imagen seleccionada.</div>
+      <div class="hint">Se guarda solo en este dispositivo (se comprime automáticamente).</div>
     </div>
 
     <div class="field">
@@ -652,7 +657,7 @@ const lookStore = {
     try { return { ...DEFAULT_LOOK, ...(JSON.parse(localStorage.getItem(LOOK_KEY)) || {}) }; }
     catch { return { ...DEFAULT_LOOK }; }
   },
-  set(v){ try { localStorage.setItem(LOOK_KEY, JSON.stringify(v)); } catch {} }
+  set(v){ try { localStorage.setItem(LOOK_KEY, JSON.stringify(v)); return true; } catch { return false; } }
 };
 
 function applyLook(look){
@@ -782,7 +787,7 @@ function loadLookToForm(){
   markSeg("bgSeg", "bg", look.bg);
   const t = THEMES[look.theme] || THEMES.terminal;
   $("accentInput").value = look.accent || (/^#[0-9a-fA-F]{6}$/.test(t.vars["--accent"]) ? t.vars["--accent"] : "#e8e8e8");
-  $("bgUrl").value = look.bgUrl || "";
+  $("bgFileName").textContent = look.bgUrl ? "Imagen cargada ✓" : "Ninguna imagen seleccionada.";
   $("bgUrlField").hidden = look.bg !== "custom";
   $("bgOpacity").value = look.bgOpacity ?? 60;
   $("bgOpacityVal").textContent = (look.bgOpacity ?? 60) + "%";
@@ -792,8 +797,9 @@ function loadLookToForm(){
 
 function patchLook(patch){
   const look = { ...lookStore.get(), ...patch };
-  lookStore.set(look);
+  const ok = lookStore.set(look);
   applyLook(look);
+  if (!ok) alert("La imagen es demasiado grande para guardarse en este dispositivo. Prueba con otra más ligera.");
   return look;
 }
 
@@ -803,7 +809,45 @@ $("radiusSeg").querySelectorAll("button").forEach(b => b.onclick = () => { patch
 $("bgSeg").querySelectorAll("button").forEach(b => b.onclick = () => { patchLook({ bg: b.dataset.bg }); loadLookToForm(); });
 $("accentInput").oninput = () => patchLook({ accent: $("accentInput").value });
 $("accentReset").onclick = () => { patchLook({ accent: null }); loadLookToForm(); };
-$("bgUrl").oninput = () => patchLook({ bgUrl: $("bgUrl").value.trim(), bg: "custom" });
+function fileToCompressedDataURL(file, maxDim, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read-failed"));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("decode-failed"));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+$("bgFileBtn").onclick = () => $("bgFile").click();
+$("bgFileClear").onclick = () => { $("bgFile").value = ""; patchLook({ bgUrl: "", bg: "none" }); loadLookToForm(); };
+$("bgFile").onchange = async () => {
+  const file = $("bgFile").files[0];
+  if (!file) return;
+  $("bgFileName").textContent = "Procesando…";
+  try {
+    const dataUrl = await fileToCompressedDataURL(file, 1920, 0.82);
+    patchLook({ bgUrl: dataUrl, bg: "custom" });
+    loadLookToForm();
+  } catch {
+    $("bgFileName").textContent = "No se pudo cargar esa imagen.";
+  }
+};
 $("bgOpacity").oninput = () => { $("bgOpacityVal").textContent = $("bgOpacity").value + "%"; patchLook({ bgOpacity: Number($("bgOpacity").value) }); };
 $("scanlinesTgl").onchange = () => patchLook({ scanlines: $("scanlinesTgl").checked });
 $("grainTgl").onchange = () => patchLook({ grain: $("grainTgl").checked });
