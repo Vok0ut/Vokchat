@@ -399,8 +399,8 @@
 ▄╣   ▄▄▄   ╠▄
  ╚═════════╝</span>
 <span class="wordmark">V O K _ C H A T</span>
-<span class="ver">v1.5 // terminal</span></pre>
-    <p>Configura tu API key en <kbd>AJUSTES</kbd>. Con un token de GitHub el modelo puede leer y editar tus repos.</p>
+<span class="ver">v1.6 // terminal</span></pre>
+    <p>Configura tu API key en <kbd>AJUSTES</kbd>. Con un token de GitHub el modelo puede leer y editar tus repos, y con un bridge MCP puede navegar por internet.</p>
   </div>
 </main>
 
@@ -422,6 +422,7 @@
     <button class="active" data-tab="look">Apariencia</button>
     <button data-tab="model">Modelo</button>
     <button data-tab="gh">GitHub</button>
+    <button data-tab="browser">Navegador</button>
   </div>
 
   <!-- ---- Apariencia ---- -->
@@ -568,6 +569,23 @@ function cors() {
       <label for="ghToken">GitHub · Personal Access Token</label>
       <input id="ghToken" type="password" placeholder="ghp_… o github_pat_…" autocomplete="off">
       <div class="hint">Con permiso <b>repo</b>. Activa herramientas: listar repos, leer archivos, buscar código y crear/editar archivos (con confirmación).</div>
+    </div>
+  </div>
+
+  <!-- ---- Navegador (MCP) ---- -->
+  <div class="panel" data-panel="browser">
+    <div class="status-row">
+      <span class="badge" id="badgeBridge">Navegador · off</span>
+    </div>
+    <div class="field">
+      <label for="bridgeUrl">URL del bridge MCP</label>
+      <input id="bridgeUrl" type="url" placeholder="https://tu-bridge.onrender.com" autocomplete="off">
+      <div class="hint">Servidor propio que conecta un navegador MCP real (p. ej. Obscura) con el modelo. Da acceso a internet: buscar, abrir páginas, leer su contenido. Instrucciones para desplegarlo en <code>mcp-bridge/README.md</code> del repo.</div>
+    </div>
+    <div class="field">
+      <label for="bridgeToken">Token del bridge</label>
+      <input id="bridgeToken" type="password" placeholder="token secreto" autocomplete="off">
+      <div class="hint">El mismo valor que configuraste como <code>BRIDGE_TOKEN</code> al desplegar el bridge.</div>
     </div>
   </div>
 
@@ -865,14 +883,18 @@ function loadCfgToForm(){
   $("model").value = c.model || "";
   $("proxy").value = c.proxy || "";
   $("ghToken").value = c.ghToken || "";
+  $("bridgeUrl").value = c.bridgeUrl || "";
+  $("bridgeToken").value = c.bridgeToken || "";
   refreshBadges(c);
 }
 function refreshBadges(c){
-  const bn = $("badgeNim"), bg = $("badgeGh");
+  const bn = $("badgeNim"), bg = $("badgeGh"), bb = $("badgeBridge");
   bn.textContent = c.nimKey ? "NIM · ok" : "NIM · sin key";
   bn.classList.toggle("ok", !!c.nimKey);
   bg.textContent = c.ghToken ? "GitHub · on" : "GitHub · off";
   bg.classList.toggle("ok", !!c.ghToken);
+  bb.textContent = c.bridgeUrl ? "Navegador · on" : "Navegador · off";
+  bb.classList.toggle("ok", !!c.bridgeUrl);
   $("modelTag").textContent = c.model || "sin configurar";
 }
 $("saveBtn").onclick = () => {
@@ -880,10 +902,13 @@ $("saveBtn").onclick = () => {
     nimKey: $("nimKey").value.trim(),
     model: $("model").value.trim() || "meta/llama-3.1-70b-instruct",
     proxy: $("proxy").value.trim().replace(/\/$/, ""),
-    ghToken: $("ghToken").value.trim()
+    ghToken: $("ghToken").value.trim(),
+    bridgeUrl: $("bridgeUrl").value.trim().replace(/\/$/, ""),
+    bridgeToken: $("bridgeToken").value.trim()
   };
   store.set(c);
   refreshBadges(c);
+  bridgeToolsCache = null; bridgeToolsCacheKey = null;
   closeSheet();
 };
 $("wipeBtn").onclick = () => {
@@ -1103,7 +1128,36 @@ const toolDefs = [
     }, required:["repo","path","content","message"] } } }
 ];
 
-async function runTool(name, args){
+/* ---- Herramientas de navegador vía MCP bridge ---- */
+let bridgeToolsCache = null;
+let bridgeToolsCacheKey = null;
+
+async function getBridgeToolDefs(cfg){
+  if (!cfg.bridgeUrl) return [];
+  const key = cfg.bridgeUrl + "|" + cfg.bridgeToken;
+  if (bridgeToolsCache && bridgeToolsCacheKey === key) return bridgeToolsCache;
+  const r = await fetch(cfg.bridgeUrl + "/tools", {
+    headers: { "Authorization": "Bearer " + cfg.bridgeToken }
+  });
+  if (!r.ok) throw new Error("bridge " + r.status);
+  const data = await r.json();
+  bridgeToolsCache = data.tools || [];
+  bridgeToolsCacheKey = key;
+  return bridgeToolsCache;
+}
+
+async function callBridgeTool(cfg, name, args){
+  const r = await fetch(cfg.bridgeUrl + "/call", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.bridgeToken },
+    body: JSON.stringify({ name, arguments: args || {} })
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error("bridge " + r.status + ": " + (data.error || "error"));
+  return data;
+}
+
+async function runTool(name, args, cfg){
   switch (name) {
     case "list_repos": {
       const repos = await ghFetch("/user/repos?per_page=60&sort=updated");
@@ -1140,6 +1194,7 @@ async function runTool(name, args){
       return { committed: true, sha: res.commit && res.commit.sha, url: res.content && res.content.html_url };
     }
     default:
+      if (cfg && cfg.bridgeUrl) return await callBridgeTool(cfg, name, args);
       return { error: "Herramienta desconocida: " + name };
   }
 }
@@ -1150,18 +1205,26 @@ function systemPrompt(cfg){
           "Usa bloques de codigo con ``` cuando muestres codigo.";
   if (cfg.ghToken) p += " Tienes herramientas para trabajar con los repositorios de GitHub del usuario. " +
     "Usalas cuando la pregunta lo requiera en lugar de inventar contenido de los repos.";
+  if (cfg.bridgeUrl) p += " Tienes herramientas de un navegador web real (navegar a una URL, hacer click, leer el contenido de una pagina). " +
+    "Usalas para buscar informacion actual en internet en vez de inventarla o de decir que no tenes acceso a la web.";
   return p;
 }
 
 async function callModel(cfg){
   const endpoint = cfg.proxy || "https://integrate.api.nvidia.com/v1/chat/completions";
+  let tools = [];
+  if (cfg.ghToken) tools = tools.concat(toolDefs);
+  if (cfg.bridgeUrl) {
+    try { tools = tools.concat(await getBridgeToolDefs(cfg)); }
+    catch (e) { addMsg("system-note", "Aviso: no se pudo conectar con el bridge de navegador (" + (e.message || e) + ")."); }
+  }
   const body = {
     model: cfg.model,
     max_tokens: 2048,
     temperature: 0.6,
     messages: [{ role: "system", content: systemPrompt(cfg) }, ...messages]
   };
-  if (cfg.ghToken) body.tools = toolDefs;
+  if (tools.length) body.tools = tools;
 
   const r = await fetch(endpoint, {
     method: "POST",
@@ -1186,7 +1249,7 @@ async function agentLoop(cfg){
         try { args = JSON.parse(tc.function.arguments || "{}"); } catch {}
         addMsg("tool", "▸ " + tc.function.name + " " + JSON.stringify(args));
         let result;
-        try { result = await runTool(tc.function.name, args); }
+        try { result = await runTool(tc.function.name, args, cfg); }
         catch (e) { result = { error: String(e.message || e) }; }
         messages.push({
           role: "tool", tool_call_id: tc.id,
