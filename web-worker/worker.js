@@ -66,7 +66,7 @@ export default {
 };
 
 function toolDefs(env) {
-  const defs = [{
+  const fetchUrl = {
     type: "function",
     function: {
       name: "fetch_url",
@@ -77,22 +77,20 @@ function toolDefs(env) {
         required: ["url"]
       }
     }
-  }];
-  if (env.BRAVE_KEY) {
-    defs.push({
-      type: "function",
-      function: {
-        name: "web_search",
-        description: "Busca en la web y devuelve resultados con titulo, URL y descripcion. Usala para encontrar informacion actual antes de leer una pagina.",
-        parameters: {
-          type: "object",
-          properties: { query: { type: "string", description: "terminos de busqueda" } },
-          required: ["query"]
-        }
+  };
+  const webSearch = {
+    type: "function",
+    function: {
+      name: "web_search",
+      description: "Busca en la web y devuelve resultados con titulo, URL y descripcion. Usala para encontrar informacion actual antes de leer una pagina.",
+      parameters: {
+        type: "object",
+        properties: { query: { type: "string", description: "terminos de busqueda" } },
+        required: ["query"]
       }
-    });
-  }
-  return defs;
+    }
+  };
+  return env.BRAVE_KEY ? [fetchUrl, webSearch] : [fetchUrl];
 }
 
 async function runTool(name, args, env) {
