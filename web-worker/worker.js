@@ -15,33 +15,46 @@
  * JavaScript de la página ni hace clicks. Lee el HTML tal cual llega y lo
  * convierte a texto. Para la mayoría de webs de contenido alcanza.
  *
- * Variables de entorno (se configuran en el panel de Cloudflare):
- *   - WEB_TOKEN  (obligatorio)  token secreto que debe enviar el cliente.
- *   - BRAVE_KEY  (opcional)     API key de Brave Search para habilitar
- *                               web_search (tier gratis en api.search.brave.com).
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  CONFIGURACIÓN (edita las dos líneas de abajo)                     │
+ * └─────────────────────────────────────────────────────────────────┘
+ * Es lo único que tenés que tocar. No hace falta usar la pantalla de
+ * "Variables" de Cloudflare: escribí el token acá mismo y hacé Deploy.
  */
+
+// Token secreto: poné cualquier texto largo y difícil (ej. "vok-8f3k2h9x7q").
+// Es OBLIGATORIO. Este mismo valor va en Vok Chat → Navegador → "Token".
+const TOKEN = "";
+
+// (Opcional) API key de Brave Search para habilitar la búsqueda web.
+// Se saca gratis en https://brave.com/search/api/ . Si la dejás "", el
+// modelo solo podrá leer páginas (fetch_url), no buscar.
+const BRAVE_KEY = "";
+
+// ── A partir de aquí no necesitas cambiar nada ──────────────────────────
 
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
+    const token = TOKEN || env.WEB_TOKEN;
+    const cfg = { BRAVE_KEY: BRAVE_KEY || env.BRAVE_KEY };
 
     if (req.method === "OPTIONS") return cors(new Response(null, { status: 204 }));
 
-    if (url.pathname === "/health") return cors(json({ ok: true, search: !!env.BRAVE_KEY }));
+    if (url.pathname === "/health") return cors(json({ ok: true, hasToken: !!token, search: !!cfg.BRAVE_KEY }));
 
-    const token = env.WEB_TOKEN;
     const auth = req.headers.get("Authorization") || "";
     if (!token || auth !== "Bearer " + token) return cors(json({ error: "unauthorized" }, 401));
 
     if (url.pathname === "/tools" && req.method === "GET") {
-      return cors(json({ tools: toolDefs(env) }));
+      return cors(json({ tools: toolDefs(cfg) }));
     }
 
     if (url.pathname === "/call" && req.method === "POST") {
       let body = {};
       try { body = await req.json(); } catch {}
       try {
-        const result = await runTool(body.name, body.arguments || {}, env);
+        const result = await runTool(body.name, body.arguments || {}, cfg);
         return cors(json(result));
       } catch (e) {
         return cors(json({ error: String((e && e.message) || e) }));

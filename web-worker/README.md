@@ -26,16 +26,25 @@ ahí sí conviene la opción `mcp-bridge/` con Obscura.
 2. **Workers & Pages → Create → Create Worker.** Ponele un nombre y **Deploy**
    (crea uno de ejemplo).
 3. **Edit code.** Borrá todo y pegá el contenido de [`worker.js`](./worker.js).
-   **Deploy**.
-4. **Settings → Variables and Secrets → Add:**
-   - `WEB_TOKEN` = un token secreto que elijas (p. ej. el resultado de
-     `openssl rand -hex 32`, o cualquier texto largo y difícil). **Obligatorio.**
-   - `BRAVE_KEY` = *(opcional)* tu API key de
-     [Brave Search API](https://brave.com/search/api/) (tier gratis) si querés
-     habilitar `web_search`. Si no la ponés, solo queda `fetch_url`.
+4. En la parte de arriba del código, editá la línea del token:
+   ```js
+   const TOKEN = "";   →   const TOKEN = "el-secreto-que-elijas";
+   ```
+   Poné cualquier texto largo y difícil. **No hace falta tocar la pantalla de
+   "Variables"** de Cloudflare: con esta línea alcanza.
+   *(Opcional: si querés búsqueda web, pegá tu API key de
+   [Brave Search](https://brave.com/search/api/) en `const BRAVE_KEY = "…"`.)*
+5. **Deploy.**
+6. Copiá la URL del Worker (algo como `https://tu-worker.tu-cuenta.workers.dev`).
 
-   Guardá y volvé a **Deploy** para que tome las variables.
-5. Copiá la URL del Worker (algo como `https://tu-worker.tu-cuenta.workers.dev`).
+> **Verificá que quedó bien:** abrí `https://tu-worker…workers.dev/health` en el
+> navegador. Debe responder `{"ok":true,"hasToken":true,...}`. Si dice
+> `"hasToken":false`, es que el token quedó vacío — revisá el paso 4 y
+> volvé a hacer Deploy.
+
+> Alternativa avanzada: en vez de la línea `TOKEN`, podés definir las variables
+> `WEB_TOKEN` (y `BRAVE_KEY`) en **Settings → Variables and Secrets**. El código
+> usa la línea si está, y si no, cae a la variable de entorno.
 
 ## Conectarlo en Vok Chat
 
