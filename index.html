@@ -578,14 +578,17 @@ function cors() {
       <span class="badge" id="badgeBridge">Navegador · off</span>
     </div>
     <div class="field">
-      <label for="bridgeUrl">URL del bridge MCP</label>
-      <input id="bridgeUrl" type="url" placeholder="https://tu-bridge.onrender.com" autocomplete="off">
-      <div class="hint">Servidor propio que conecta un navegador MCP real (p. ej. Obscura) con el modelo. Da acceso a internet: buscar, abrir páginas, leer su contenido. Instrucciones para desplegarlo en <code>mcp-bridge/README.md</code> del repo.</div>
+      <label for="bridgeUrl">URL del servicio web</label>
+      <input id="bridgeUrl" type="url" placeholder="https://tu-worker.workers.dev" autocomplete="off">
+      <div class="hint">Le da al modelo acceso a internet (buscar y leer páginas). Dos formas de montarlo:<br>
+        · <b>Simple, sin Docker:</b> un Cloudflare Worker (se pega en el panel, gratis) → <code>web-worker/README.md</code>.<br>
+        · <b>Navegador real</b> (ejecuta JS, hace clicks) con Obscura → <code>mcp-bridge/README.md</code>.<br>
+        Ambos usan la misma interfaz; pegá aquí la URL del que hayas desplegado.</div>
     </div>
     <div class="field">
-      <label for="bridgeToken">Token del bridge</label>
+      <label for="bridgeToken">Token del servicio</label>
       <input id="bridgeToken" type="password" placeholder="token secreto" autocomplete="off">
-      <div class="hint">El mismo valor que configuraste como <code>BRIDGE_TOKEN</code> al desplegar el bridge.</div>
+      <div class="hint">El mismo valor que configuraste como <code>WEB_TOKEN</code> (Worker) o <code>BRIDGE_TOKEN</code> (Obscura) al desplegarlo.</div>
     </div>
   </div>
 
@@ -1205,7 +1208,7 @@ function systemPrompt(cfg){
           "Usa bloques de codigo con ``` cuando muestres codigo.";
   if (cfg.ghToken) p += " Tienes herramientas para trabajar con los repositorios de GitHub del usuario. " +
     "Usalas cuando la pregunta lo requiera en lugar de inventar contenido de los repos.";
-  if (cfg.bridgeUrl) p += " Tienes herramientas de un navegador web real (navegar a una URL, hacer click, leer el contenido de una pagina). " +
+  if (cfg.bridgeUrl) p += " Tienes herramientas web para buscar y leer paginas de internet. " +
     "Usalas para buscar informacion actual en internet en vez de inventarla o de decir que no tenes acceso a la web.";
   return p;
 }
