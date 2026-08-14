@@ -1,0 +1,13 @@
+{
+  "name": "vokchat-web-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker sin dependencias que da a Vok Chat acceso a internet (fetch_url, web_search) sin necesitar Docker.",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

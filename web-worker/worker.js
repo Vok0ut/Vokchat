@@ -44,7 +44,7 @@ export default {
     if (url.pathname === "/health") return cors(json({ ok: true, hasToken: !!token, search: !!cfg.BRAVE_KEY }));
 
     const auth = req.headers.get("Authorization") || "";
-    if (!token || auth !== "Bearer " + token) return cors(json({ error: "unauthorized" }, 401));
+    if (!token || !timingSafeEqualStr(auth, "Bearer " + token)) return cors(json({ error: "unauthorized" }, 401));
 
     if (url.pathname === "/tools" && req.method === "GET") {
       return cors(json({ tools: toolDefs(cfg) }));
@@ -98,6 +98,11 @@ async function runTool(name, args, env) {
     let target = String(args.url || "").trim();
     if (!target) return { error: "falta 'url'" };
     if (!/^https?:\/\//i.test(target)) target = "https://" + target;
+    let parsed;
+    try { parsed = new URL(target); } catch { return { error: "URL invalida" }; }
+    if (isBlockedHost(parsed.hostname)) {
+      return { error: "no se permite acceder a direcciones locales o privadas" };
+    }
     const r = await fetch(target, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; VokChatBot/1.0)" },
       redirect: "follow"
@@ -126,6 +131,29 @@ async function runTool(name, args, env) {
   return { error: "herramienta desconocida: " + name };
 }
 
+// Comparacion en tiempo constante para no filtrar el token via timing attack.
+function timingSafeEqualStr(a, b) {
+  if (typeof a !== "string" || typeof b !== "string") return false;
+  const bufA = new TextEncoder().encode(a);
+  const bufB = new TextEncoder().encode(b);
+  if (bufA.length !== bufB.length) return false;
+  let diff = 0;
+  for (let i = 0; i < bufA.length; i++) diff |= bufA[i] ^ bufB[i];
+  return diff === 0;
+}
+
+// Bloquea destinos locales/privados en fetch_url para mitigar SSRF basico.
+function isBlockedHost(hostname) {
+  const h = String(hostname || "").toLowerCase().replace(/^\[|\]$/g, "");
+  if (h === "localhost" || h === "0.0.0.0" || h === "::1" || h === "") return true;
+  if (/^127\./.test(h)) return true;
+  if (/^10\./.test(h)) return true;
+  if (/^169\.254\./.test(h)) return true;
+  if (/^192\.168\./.test(h)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+  return false;
+}
+
 function htmlToText(html) {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -151,3 +179,7 @@ function cors(res) {
   res.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   return res;
 }
+
+// Exports nombrados solo para tests (Node). Cloudflare Workers ignora los
+// exports adicionales y usa unicamente el `export default` de arriba.
+export { htmlToText, runTool, toolDefs, timingSafeEqualStr, isBlockedHost };

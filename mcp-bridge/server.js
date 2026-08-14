@@ -1,6 +1,7 @@
 import express from "express";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { toOpenAiTools, flattenToolResult, tokensMatch } from "./lib.js";
 
 const PORT = Number(process.env.PORT) || 8080;
 const TOKEN = process.env.BRIDGE_TOKEN;
@@ -11,6 +12,11 @@ const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "*";
 if (!TOKEN) {
   console.error("Falta BRIDGE_TOKEN. Define un token secreto en el entorno antes de arrancar.");
   process.exit(1);
+}
+
+if (ALLOWED_ORIGIN === "*") {
+  console.warn("Aviso: ALLOWED_ORIGIN no esta configurado, se permite cualquier origen (*). " +
+    "Define ALLOWED_ORIGIN con el dominio de tu Vok Chat para restringirlo.");
 }
 
 let client = null;
@@ -35,30 +41,6 @@ async function connectMcp() {
   console.log(`Conectado a MCP (${MCP_COMMAND} ${MCP_ARGS.join(" ")}). Tools: ${tools.map(t => t.name).join(", ")}`);
 }
 
-function toOpenAiTools(mcpTools) {
-  return mcpTools.map(t => ({
-    type: "function",
-    function: {
-      name: t.name,
-      description: t.description || "",
-      parameters: t.inputSchema || { type: "object", properties: {} }
-    }
-  }));
-}
-
-function flattenToolResult(result) {
-  if (!result || !Array.isArray(result.content)) return result;
-  const text = result.content
-    .map(part => {
-      if (part.type === "text") return part.text;
-      if (part.type === "image") return "[imagen omitida: " + (part.mimeType || "image") + "]";
-      if (part.type === "resource") return "[recurso: " + (part.resource && part.resource.uri) + "]";
-      return "[contenido no textual: " + part.type + "]";
-    })
-    .join("\n");
-  return { text, isError: !!result.isError };
-}
-
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 
@@ -72,7 +54,7 @@ app.use((req, res, next) => {
 
 function checkAuth(req, res) {
   const auth = req.headers.authorization || "";
-  if (auth !== `Bearer ${TOKEN}`) {
+  if (!tokensMatch(auth, `Bearer ${TOKEN}`)) {
     res.status(401).json({ error: "unauthorized" });
     return false;
   }

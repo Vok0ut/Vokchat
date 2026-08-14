@@ -6,7 +6,8 @@
   "description": "Puente HTTP <-> MCP (stdio) para que Vok Chat use servidores MCP (p.ej. el navegador Obscura) como tools.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

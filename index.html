@@ -128,9 +128,23 @@
   }
   .msg.assistant .body pre{
     font-family:var(--mono);font-size:12px;background:color-mix(in srgb, var(--bg) 70%, #000);
-    border:1px solid var(--line);border-radius:var(--radius);padding:12px;
-    overflow-x:auto;margin:8px 0;white-space:pre;
+    border:1px solid var(--line);border-radius:var(--radius);padding:12px;padding-top:26px;
+    overflow-x:auto;margin:8px 0;white-space:pre;position:relative;
   }
+  .code-copy-btn{
+    position:absolute;top:5px;right:6px;background:transparent;border:1px solid var(--line-bright);
+    color:var(--ink-soft);font-size:9.5px;text-transform:uppercase;letter-spacing:0.05em;
+    padding:2px 7px;border-radius:calc(var(--radius) / 2);cursor:pointer;line-height:1.6;
+  }
+  .code-copy-btn:active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  .msg-actions{display:flex;gap:6px;margin-top:6px}
+  .msg.user .msg-actions{justify-content:flex-end}
+  .msg-action-btn{
+    background:transparent;border:1px solid var(--line);color:var(--ink-soft);
+    font-size:9.5px;text-transform:uppercase;letter-spacing:0.05em;
+    padding:3px 8px;border-radius:var(--radius);cursor:pointer;
+  }
+  .msg-action-btn:active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
   .msg.tool .body{
     font-family:var(--mono);font-size:11px;color:var(--ink-soft);background:var(--panel);
     border:1px dashed var(--line-bright);border-radius:var(--radius);padding:7px 11px;
@@ -205,6 +219,7 @@
   }
   .send-btn:active{filter:brightness(0.85)}
   .send-btn:disabled{background:var(--surface);color:var(--ink-soft);border-color:var(--line)}
+  #stopBtn{background:var(--surface);color:var(--ink);border-color:var(--line-bright)}
 
   /* ---------- Sheets ---------- */
   .sheet-backdrop{
@@ -399,13 +414,16 @@
 ▄╣   ▄▄▄   ╠▄
  ╚═════════╝</span>
 <span class="wordmark">V O K _ C H A T</span>
-<span class="ver">v1.6 // terminal</span></pre>
+<span class="ver">v1.7 // terminal</span></pre>
     <p>Configura tu API key en <kbd>AJUSTES</kbd>. Con un token de GitHub el modelo puede leer y editar tus repos, y con un bridge MCP puede navegar por internet.</p>
   </div>
 </main>
 
 <div class="composer">
   <textarea id="input" rows="1" placeholder="Escribe un mensaje…"></textarea>
+  <button class="send-btn" id="stopBtn" aria-label="Detener generación" hidden>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+  </button>
   <button class="send-btn" id="sendBtn" aria-label="Enviar">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
   </button>
@@ -530,6 +548,22 @@
       <input id="proxy" type="url" placeholder="https://tu-worker.workers.dev" autocomplete="off">
       <div class="hint">La API de NVIDIA no permite llamadas directas desde el navegador. Despliega el mini-proxy de abajo (Cloudflare Worker gratis) y pega aquí su URL.</div>
     </div>
+    <details class="help">
+      <summary>Parámetros avanzados</summary>
+      <div class="field" style="margin-top:10px">
+        <label for="systemPrompt">Prompt de sistema personalizado</label>
+        <textarea id="systemPrompt" rows="3" placeholder="Dejar vacío para usar el prompt por defecto…" style="width:100%;border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;font-size:12.5px;background:var(--surface);color:var(--ink);outline:none;resize:vertical;font-family:inherit"></textarea>
+        <div class="hint">Sustituye por completo las instrucciones internas del asistente (incluida la mención a las herramientas).</div>
+      </div>
+      <div class="field">
+        <label for="temperature">Temperature · <span id="temperatureVal">0.6</span></label>
+        <input type="range" id="temperature" min="0" max="2" step="0.05" value="0.6">
+      </div>
+      <div class="field">
+        <label for="maxTokens">Tokens máximos de respuesta</label>
+        <input id="maxTokens" type="text" inputmode="numeric" placeholder="2048" autocomplete="off">
+      </div>
+    </details>
     <details class="help">
       <summary>Código del proxy · Cloudflare Worker</summary>
       <pre>export default {
@@ -752,7 +786,7 @@ const store = {
 
 /* ================= DOM ================= */
 const $ = id => document.getElementById(id.replace(/^#/, ""));
-const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn");
+const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn"), stopBtn = $("stopBtn");
 const sheet = $("sheet"), backdrop = $("backdrop");
 
 function openSheet(){ loadCfgToForm(); loadLookToForm(); sheet.classList.add("open"); backdrop.classList.add("open"); }
@@ -885,11 +919,16 @@ function loadCfgToForm(){
   $("nimKey").value = c.nimKey || "";
   $("model").value = c.model || "";
   $("proxy").value = c.proxy || "";
+  $("systemPrompt").value = c.systemPrompt || "";
+  $("temperature").value = c.temperature ?? 0.6;
+  $("temperatureVal").textContent = String(c.temperature ?? 0.6);
+  $("maxTokens").value = c.maxTokens || "";
   $("ghToken").value = c.ghToken || "";
   $("bridgeUrl").value = c.bridgeUrl || "";
   $("bridgeToken").value = c.bridgeToken || "";
   refreshBadges(c);
 }
+$("temperature").oninput = () => { $("temperatureVal").textContent = $("temperature").value; };
 function refreshBadges(c){
   const bn = $("badgeNim"), bg = $("badgeGh"), bb = $("badgeBridge");
   bn.textContent = c.nimKey ? "NIM · ok" : "NIM · sin key";
@@ -905,6 +944,9 @@ $("saveBtn").onclick = () => {
     nimKey: $("nimKey").value.trim(),
     model: $("model").value.trim() || "meta/llama-3.1-70b-instruct",
     proxy: $("proxy").value.trim().replace(/\/$/, ""),
+    systemPrompt: $("systemPrompt").value.trim(),
+    temperature: Number($("temperature").value) || 0.6,
+    maxTokens: Number($("maxTokens").value) || null,
     ghToken: $("ghToken").value.trim(),
     bridgeUrl: $("bridgeUrl").value.trim().replace(/\/$/, ""),
     bridgeToken: $("bridgeToken").value.trim()
@@ -960,8 +1002,97 @@ function addMsg(role, text){
   return body;
 }
 
+async function copyToClipboard(text){
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {}
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    return true;
+  } catch { return false; }
+}
+
+function enhanceCodeBlocks(bodyEl){
+  bodyEl.querySelectorAll("pre").forEach(pre => {
+    if (pre.dataset.enhanced) return;
+    pre.dataset.enhanced = "1";
+    const code = pre.textContent;
+    const btn = el("button", "code-copy-btn", "Copiar");
+    btn.type = "button";
+    btn.onclick = async () => {
+      const ok = await copyToClipboard(code);
+      btn.textContent = ok ? "✓" : "✕";
+      setTimeout(() => { btn.textContent = "Copiar"; }, 1200);
+    };
+    pre.appendChild(btn);
+  });
+}
+
+function clearRegenerateButtons(){
+  chat.querySelectorAll('.msg-action-btn[data-action="regenerate"]').forEach(b => b.remove());
+}
+
+function attachAssistantActions(bodyEl, text, { regenerate } = {}){
+  enhanceCodeBlocks(bodyEl);
+  const wrap = bodyEl.closest(".msg");
+  if (!wrap) return;
+  if (regenerate) clearRegenerateButtons();
+  const bar = el("div", "msg-actions");
+  const copyBtn = el("button", "msg-action-btn", "Copiar");
+  copyBtn.type = "button";
+  copyBtn.onclick = async () => {
+    const ok = await copyToClipboard(text);
+    copyBtn.textContent = ok ? "Copiado ✓" : "Error";
+    setTimeout(() => { copyBtn.textContent = "Copiar"; }, 1200);
+  };
+  bar.appendChild(copyBtn);
+  if (regenerate) {
+    const regenBtn = el("button", "msg-action-btn", "Regenerar");
+    regenBtn.type = "button";
+    regenBtn.dataset.action = "regenerate";
+    regenBtn.onclick = regenerate;
+    bar.appendChild(regenBtn);
+  }
+  wrap.appendChild(bar);
+}
+
+function removeLastAssistantBubble(){
+  const nodes = chat.querySelectorAll(".msg.assistant");
+  if (nodes.length) nodes[nodes.length - 1].remove();
+}
+
+async function regenerateLast(){
+  if (busy) return;
+  const last = messages[messages.length - 1];
+  if (!last || last.role !== "assistant") return;
+  messages.pop();
+  removeLastAssistantBubble();
+  setBusy(true);
+  showTyping();
+  activeAbort = new AbortController();
+  try {
+    await agentLoop(store.get(), activeAbort.signal);
+  } catch (e) {
+    hideTyping();
+    if (e && e.name === "AbortError") addMsg("system-note", "── generación detenida ──");
+    else addMsg("system-note", "Error: " + describeError(e));
+  } finally {
+    activeAbort = null;
+    persistConv();
+    setBusy(false);
+  }
+}
+
 function showTyping(){
   hideEmpty();
+  hideTyping();
   const wrap = el("div", "msg assistant"); wrap.id = "typingMsg";
   wrap.appendChild(el("div", "role", "MODEL"));
   const body = el("div", "body");
@@ -1010,11 +1141,15 @@ function loadConv(id){
   convId = c.id;
   messages = c.messages;
   chat.innerHTML = "";
-  messages.forEach(m => {
+  const lastIdx = messages.length - 1;
+  messages.forEach((m, i) => {
     if (m.role === "user") addMsg("user", m.content);
     else if (m.role === "assistant" && m.tool_calls && m.tool_calls.length)
       m.tool_calls.forEach(tc => addMsg("tool", "▸ " + tc.function.name + " " + (tc.function.arguments || "")));
-    else if (m.role === "assistant" && m.content) addMsg("assistant", m.content);
+    else if (m.role === "assistant" && m.content) {
+      const body = addMsg("assistant", m.content);
+      attachAssistantActions(body, m.content, i === lastIdx ? { regenerate: regenerateLast } : {});
+    }
   });
   closeHistory();
   chat.scrollTop = chat.scrollHeight;
@@ -1175,8 +1310,14 @@ async function runTool(name, args, cfg){
     }
     case "get_file": {
       const f = await ghFetch("/repos/" + args.repo + "/contents/" + args.path);
+      if (Array.isArray(f) || f.type !== "file") return { error: "La ruta no es un archivo (es un directorio)." };
+      if (typeof f.content !== "string") return { error: "No se pudo leer el contenido del archivo." };
       if (f.size > 120000) return { error: "Archivo demasiado grande (" + f.size + " bytes)" };
-      return { path: f.path, content: b64decodeUtf8(f.content) };
+      try {
+        return { path: f.path, content: b64decodeUtf8(f.content) };
+      } catch {
+        return { error: "El archivo no parece texto UTF-8 (probablemente binario), no se puede mostrar." };
+      }
     }
     case "search_code": {
       const d = await ghFetch("/search/code?per_page=10&q=" + encodeURIComponent(args.query));
@@ -1204,6 +1345,7 @@ async function runTool(name, args, cfg){
 
 /* ================= Llamada al modelo ================= */
 function systemPrompt(cfg){
+  if (cfg.systemPrompt && cfg.systemPrompt.trim()) return cfg.systemPrompt.trim();
   let p = "Eres un asistente conciso y util. Responde en el idioma del usuario. " +
           "Usa bloques de codigo con ``` cuando muestres codigo.";
   if (cfg.ghToken) p += " Tienes herramientas para trabajar con los repositorios de GitHub del usuario. " +
@@ -1213,7 +1355,18 @@ function systemPrompt(cfg){
   return p;
 }
 
-async function callModel(cfg){
+function clampNum(v, fallback, min, max){
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+/**
+ * Llama al modelo con streaming SSE (compatible OpenAI). `onDelta(partialText)`
+ * se invoca en cada trozo de texto recibido para pintar la respuesta en vivo.
+ * Si el endpoint no soporta streaming, cae de vuelta a una respuesta JSON completa.
+ */
+async function callModel(cfg, signal, onDelta){
   const endpoint = cfg.proxy || "https://integrate.api.nvidia.com/v1/chat/completions";
   let tools = [];
   if (cfg.ghToken) tools = tools.concat(toolDefs);
@@ -1223,8 +1376,9 @@ async function callModel(cfg){
   }
   const body = {
     model: cfg.model,
-    max_tokens: 2048,
-    temperature: 0.6,
+    max_tokens: cfg.maxTokens ? clampNum(cfg.maxTokens, 2048, 16, 32000) : 2048,
+    temperature: clampNum(cfg.temperature, 0.6, 0, 2),
+    stream: true,
     messages: [{ role: "system", content: systemPrompt(cfg) }, ...messages]
   };
   if (tools.length) body.tools = tools;
@@ -1232,20 +1386,75 @@ async function callModel(cfg){
   const r = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.nimKey },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal
   });
   if (!r.ok) {
     const t = await r.text().catch(() => "");
     throw new Error("API " + r.status + ": " + t.slice(0, 300));
   }
-  const data = await r.json();
-  return data.choices[0].message;
+
+  if (!r.body || !r.body.getReader) {
+    // Entorno sin streams legibles: fallback a JSON completo.
+    const data = await r.json().catch(() => null);
+    const msg = data && data.choices && data.choices[0] && data.choices[0].message;
+    if (!msg) throw new Error("Respuesta inesperada de la API (sin choices/message).");
+    if (msg.content) onDelta(msg.content);
+    return msg;
+  }
+
+  const reader = r.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "", content = "";
+  const toolCalls = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop() || "";
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line.startsWith("data:")) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+      let evt;
+      try { evt = JSON.parse(payload); } catch { continue; }
+      const choice = evt.choices && evt.choices[0];
+      if (!choice) continue;
+      const delta = choice.delta || {};
+      if (typeof delta.content === "string" && delta.content) {
+        content += delta.content;
+        onDelta(content);
+      }
+      if (Array.isArray(delta.tool_calls)) {
+        for (const tc of delta.tool_calls) {
+          const idx = typeof tc.index === "number" ? tc.index : 0;
+          if (!toolCalls[idx]) toolCalls[idx] = { id: "", type: "function", function: { name: "", arguments: "" } };
+          if (tc.id) toolCalls[idx].id = tc.id;
+          if (tc.function && tc.function.name) toolCalls[idx].function.name += tc.function.name;
+          if (tc.function && typeof tc.function.arguments === "string") toolCalls[idx].function.arguments += tc.function.arguments;
+        }
+      }
+    }
+  }
+  const finalToolCalls = toolCalls.filter(Boolean);
+  return { content, tool_calls: finalToolCalls.length ? finalToolCalls : undefined };
 }
 
-async function agentLoop(cfg){
+async function agentLoop(cfg, signal){
   for (let step = 0; step < 6; step++) {
-    const msg = await callModel(cfg);
+    let liveBody = null;
+    const msg = await callModel(cfg, signal, (partial) => {
+      if (!liveBody) { hideTyping(); liveBody = addMsg("assistant", ""); }
+      renderMarkdownLite(liveBody, partial);
+      chat.scrollTop = chat.scrollHeight;
+    });
     if (msg.tool_calls && msg.tool_calls.length) {
+      if (liveBody && !msg.content) {
+        const wrap = liveBody.closest(".msg");
+        if (wrap) wrap.remove();
+      }
       messages.push(msg);
       for (const tc of msg.tool_calls) {
         let args = {};
@@ -1259,15 +1468,31 @@ async function agentLoop(cfg){
           content: JSON.stringify(result).slice(0, 24000)
         });
       }
+      showTyping();
       continue;
     }
+    if (!liveBody) hideTyping();
+    const finalBody = liveBody || addMsg("assistant", msg.content || "");
     messages.push({ role: "assistant", content: msg.content || "" });
+    attachAssistantActions(finalBody, msg.content || "", { regenerate: regenerateLast });
     return msg.content || "";
   }
-  return "Se alcanzo el limite de pasos de herramientas.";
+  hideTyping();
+  const limitMsg = "Se alcanzo el limite de pasos de herramientas.";
+  addMsg("system-note", limitMsg);
+  messages.push({ role: "assistant", content: limitMsg });
+  return limitMsg;
 }
 
 /* ================= Enviar ================= */
+let activeAbort = null;
+
+function setBusy(v){
+  busy = v;
+  sendBtn.hidden = v; sendBtn.disabled = v;
+  stopBtn.hidden = !v;
+}
+
 async function send(){
   const text = input.value.trim();
   if (!text || busy) return;
@@ -1277,29 +1502,47 @@ async function send(){
     addMsg("system-note", "Aviso: sin proxy CORS la API de NVIDIA suele bloquear el navegador. Configuralo en Ajustes si falla.");
   }
   input.value = ""; autoGrow();
-  busy = true; sendBtn.disabled = true;
+  setBusy(true);
 
   addMsg("user", text);
+  const rollbackLen = messages.length;
   messages.push({ role: "user", content: text });
   showTyping();
 
+  activeAbort = new AbortController();
   try {
-    const reply = await agentLoop(cfg);
-    hideTyping();
-    addMsg("assistant", reply);
+    await agentLoop(cfg, activeAbort.signal);
   } catch (e) {
     hideTyping();
-    addMsg("system-note", "Error: " + (e.message || e));
-    messages.pop();
+    if (e && e.name === "AbortError") {
+      addMsg("system-note", "── generación detenida ──");
+    } else {
+      addMsg("system-note", "Error: " + describeError(e));
+    }
+    // Descarta todo lo que agentLoop haya empujado a medio terminar
+    // (mensajes assistant/tool huerfanos rompen la siguiente llamada a la API).
+    messages.length = rollbackLen;
   } finally {
+    activeAbort = null;
     persistConv();
-    busy = false; sendBtn.disabled = false;
+    setBusy(false);
   }
+}
+
+stopBtn.onclick = () => { if (activeAbort) activeAbort.abort(); };
+
+function describeError(e){
+  const msg = String((e && e.message) || e || "error desconocido");
+  if (/API 401/.test(msg)) return "clave de NVIDIA NIM invalida o vencida (401). Revisa Ajustes > Modelo.";
+  if (/API 403/.test(msg)) return "acceso denegado (403). Revisa permisos de la clave/token.";
+  if (/API 429/.test(msg)) return "limite de peticiones alcanzado (429). Espera un momento y reintenta.";
+  if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) return "no se pudo conectar (revisa el proxy CORS y tu conexion).";
+  return msg;
 }
 
 sendBtn.onclick = send;
 input.addEventListener("keydown", e => {
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
 });
 function autoGrow(){
   input.style.height = "auto";
