@@ -1442,8 +1442,19 @@ async function callModel(cfg, signal, onDelta){
   return { content, tool_calls: finalToolCalls.length ? finalToolCalls : undefined };
 }
 
+const MAX_TOOL_STEPS = 20;
+const MAX_REPEATED_CALLS = 3;
+
+function toolCallSignature(toolCalls){
+  return toolCalls
+    .map(tc => tc.function.name + ":" + (tc.function.arguments || ""))
+    .sort()
+    .join("|");
+}
+
 async function agentLoop(cfg, signal){
-  for (let step = 0; step < 6; step++) {
+  let lastSig = null, repeatCount = 0;
+  for (let step = 0; step < MAX_TOOL_STEPS; step++) {
     let liveBody = null;
     const msg = await callModel(cfg, signal, (partial) => {
       if (!liveBody) { hideTyping(); liveBody = addMsg("assistant", ""); }
@@ -1455,6 +1466,25 @@ async function agentLoop(cfg, signal){
         const wrap = liveBody.closest(".msg");
         if (wrap) wrap.remove();
       }
+
+      // Deteccion de bucle: si el modelo pide exactamente la misma
+      // herramienta con los mismos argumentos varias veces seguidas
+      // (p.ej. porque el bridge de navegador esta fallando y el modelo
+      // insiste), cortamos antes de gastar todo el presupuesto de pasos.
+      const sig = toolCallSignature(msg.tool_calls);
+      repeatCount = sig === lastSig ? repeatCount + 1 : 1;
+      lastSig = sig;
+      if (repeatCount > MAX_REPEATED_CALLS) {
+        hideTyping();
+        const names = [...new Set(msg.tool_calls.map(tc => tc.function.name))].join(", ");
+        const stuckMsg = "El modelo repitio la llamada a \"" + names + "\" con los mismos argumentos " +
+          repeatCount + " veces seguidas sin avanzar, asi que se detuvo para evitar un bucle. " +
+          "Puede ser que la herramienta/bridge no este respondiendo bien, o que el pedido necesite reformularse.";
+        addMsg("system-note", stuckMsg);
+        messages.push({ role: "assistant", content: stuckMsg });
+        return stuckMsg;
+      }
+
       messages.push(msg);
       for (const tc of msg.tool_calls) {
         let args = {};
@@ -1478,7 +1508,7 @@ async function agentLoop(cfg, signal){
     return msg.content || "";
   }
   hideTyping();
-  const limitMsg = "Se alcanzo el limite de pasos de herramientas.";
+  const limitMsg = "Se alcanzo el limite de " + MAX_TOOL_STEPS + " pasos de herramientas para esta respuesta.";
   addMsg("system-note", limitMsg);
   messages.push({ role: "assistant", content: limitMsg });
   return limitMsg;
