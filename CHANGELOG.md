@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.8 — catálogo de modelos y generación de imágenes
+
+### Añadido
+
+- **Catálogo de modelos** (nueva pestaña «Modelos» en Ajustes): lista editable de modelos NIM (nombre, ID de modelo, categoría — código / razonamiento / imagen) que sustituye a las opciones fijas que antes traía el datalist de la pestaña «Modelo». Permite añadir, borrar y restaurar el catálogo a sus 3 valores por defecto (Kimi K3, Llama 3.3 70B Instruct, Flux.2 Klein 4B). Se guarda en `localStorage` (`vok.models.v1`) y cada navegador gestiona el suyo.
+- **Semilla desde Supabase**: en el primer arranque, si todavía no hay catálogo guardado localmente, la app intenta leer una tabla pública de solo lectura en Supabase (PostgREST, con `apikey` anónima embebida y RLS restringido a `select` para el rol `anon`) para poblar el catálogo inicial. Si la petición falla (sin red, CORS, etc.), cae automáticamente a una copia local de los mismos 3 valores por defecto, así que la app sigue funcionando sin conexión. Los cambios posteriores del usuario en el catálogo son solo locales y nunca se reenvían a Supabase.
+- **Generación de imágenes**: al enviar un mensaje con un modelo de categoría «Imagen» seleccionado (p. ej. Flux.2 Klein 4B), la app usa el texto como prompt y llama a un endpoint de imágenes compatible con OpenAI (`/v1/images/generations`, respuesta en `b64_json`) en vez de al chat de texto. La imagen generada se muestra en el chat y se persiste en el historial de la conversación.
+
+### Notas para quien despliegue el proxy Cloudflare Worker
+
+- El Worker de ejemplo (Ajustes → Modelo → «Código del proxy») ahora reenvía la ruta entrante (`/v1/chat/completions` o `/v1/images/generations`) en vez de forzar siempre chat/completions, para poder servir también la generación de imágenes con un único despliegue. El chat de texto sigue funcionando igual con un Worker desplegado de una versión anterior; solo hace falta redeplegar la versión nueva para que los modelos de categoría «Imagen» funcionen.
+- El shape exacto de la petición/respuesta del endpoint de imágenes de NVIDIA NIM se asumió compatible con el formato `images.generate()` de OpenAI a partir de documentación pública; si NVIDIA usa un formato distinto, el único punto de ajuste es la función `generateImage()` en `index.html`.
+
 ## v1.7 — mejoras de robustez, streaming y seguridad
 
 ### Corregido

@@ -381,6 +381,10 @@
   }
   .conv-del:active{background:var(--accent);color:var(--accent-ink)}
   .conv-empty{font-size:12px;color:var(--ink-soft);padding:16px 0}
+  .model-meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* ---------- Imagenes generadas ---------- */
+  .gen-image{max-width:100%;border-radius:var(--radius);display:block;border:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -414,7 +418,7 @@
 ▄╣   ▄▄▄   ╠▄
  ╚═════════╝</span>
 <span class="wordmark">V O K _ C H A T</span>
-<span class="ver">v1.7 // terminal</span></pre>
+<span class="ver">v1.8 // terminal</span></pre>
     <p>Configura tu API key en <kbd>AJUSTES</kbd>. Con un token de GitHub el modelo puede leer y editar tus repos, y con un bridge MCP puede navegar por internet.</p>
   </div>
 </main>
@@ -439,6 +443,7 @@
   <div class="seg" id="settingsTabs">
     <button class="active" data-tab="look">Apariencia</button>
     <button data-tab="model">Modelo</button>
+    <button data-tab="models">Modelos</button>
     <button data-tab="gh">GitHub</button>
     <button data-tab="browser">Navegador</button>
   </div>
@@ -531,17 +536,8 @@
     <div class="field">
       <label for="model">Modelo</label>
       <input id="model" list="modelList" placeholder="meta/llama-3.1-70b-instruct" autocomplete="off">
-      <datalist id="modelList">
-        <option value="meta/llama-3.1-405b-instruct">
-        <option value="meta/llama-3.1-70b-instruct">
-        <option value="meta/llama-3.3-70b-instruct">
-        <option value="mistralai/mistral-large-2-instruct">
-        <option value="qwen/qwen2.5-coder-32b-instruct">
-        <option value="deepseek-ai/deepseek-r1">
-        <option value="nvidia/llama-3.1-nemotron-70b-instruct">
-        <option value="nvidia/llama-3.1-nemotron-ultra-253b-v1">
-      </datalist>
-      <div class="hint">Para usar las herramientas de GitHub, elige un modelo con function calling (Llama 3.1/3.3, Mistral Large, Nemotron).</div>
+      <datalist id="modelList"></datalist>
+      <div class="hint">Las opciones vienen de tu catálogo (pestaña «Modelos»). Para usar las herramientas de GitHub, elige un modelo de categoría código/razonamiento con function calling (Llama 3.1/3.3, Mistral Large, Nemotron).</div>
     </div>
     <div class="field">
       <label for="proxy">Proxy CORS · necesario para NIM</label>
@@ -566,11 +562,13 @@
     </details>
     <details class="help">
       <summary>Código del proxy · Cloudflare Worker</summary>
+      <div class="hint">Si ya tenías este Worker desplegado de una versión anterior: desde v1.8 reenvía la ruta entrante en vez de forzar siempre /v1/chat/completions, para poder servir también la generación de imágenes. Redepliega esta versión para que los modelos de categoría «Imagen» funcionen (el chat de texto sigue funcionando igual con el Worker viejo).</div>
       <pre>export default {
   async fetch(req) {
     if (req.method === "OPTIONS")
       return new Response(null, { headers: cors() });
-    const url = "https://integrate.api.nvidia.com/v1/chat/completions";
+    const inUrl = new URL(req.url);
+    const url = "https://integrate.api.nvidia.com" + inUrl.pathname + inUrl.search;
     const r = await fetch(url, {
       method: "POST",
       headers: {
@@ -592,6 +590,38 @@ function cors() {
   };
 }</pre>
     </details>
+  </div>
+
+  <!-- ---- Modelos (catálogo) ---- -->
+  <div class="panel" data-panel="models">
+    <div class="hint" style="margin-bottom:14px">Catálogo de modelos disponibles en la pestaña «Modelo». Se guarda solo en este dispositivo; la primera vez se siembra desde una tabla pública de solo lectura.</div>
+
+    <div id="modelCatalogList"></div>
+
+    <hr class="divider">
+
+    <div class="field">
+      <label for="newModelName">Nombre</label>
+      <input id="newModelName" type="text" placeholder="p. ej. Kimi K3" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="newModelId">ID del modelo (NIM)</label>
+      <input id="newModelId" type="text" placeholder="p. ej. moonshotai/kimi-k2-instruct" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Categoría</label>
+      <div class="seg small" id="modelCatSeg">
+        <button class="active" data-cat="codigo">Código</button>
+        <button data-cat="razonamiento">Razonamiento</button>
+        <button data-cat="imagen">Imagen</button>
+      </div>
+      <div class="hint">Los modelos de categoría «Imagen» generan una imagen en vez de responder con texto.</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-ghost mini" id="addModelBtn">Añadir modelo</button>
+    </div>
+
+    <button class="btn-ghost" id="resetModelsBtn">Restaurar valores por defecto</button>
   </div>
 
   <!-- ---- GitHub ---- -->
@@ -784,12 +814,89 @@ const store = {
   wipe(){ memoryCfg = {}; try { localStorage.removeItem(CFG_KEY); } catch {} }
 };
 
+/* ================= Catálogo de modelos ================= */
+const MODELS_KEY = "vok.models.v1";
+// Proyecto Supabase de solo lectura (RLS: select-only para "anon"), usado solo como
+// semilla inicial del catálogo local — nunca se escribe nada de vuelta.
+const SUPABASE_URL = "https://myzqlbwmjajadmqqjqcn.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15enFsYndtamFqYWRtcXFqcWNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxOTA4NzEsImV4cCI6MjEwMzc2Njg3MX0.Daqsy_GAu-xkE49MvDKYjWPKjSPcBeDvfwqFTM3mdck";
+
+const MODEL_CATEGORIES = { codigo: "Código", razonamiento: "Razonamiento", imagen: "Imagen" };
+
+const DEFAULT_MODELS = [
+  { id: "seed-kimi",  name: "Kimi K3",                 modelId: "moonshotai/kimi-k2-instruct",       category: "codigo" },
+  { id: "seed-llama", name: "Llama 3.3 70B Instruct",   modelId: "meta/llama-3.3-70b-instruct",       category: "razonamiento" },
+  { id: "seed-flux",  name: "Flux.2 Klein 4B",          modelId: "black-forest-labs/flux.2-klein-4b", category: "imagen" }
+];
+
+const modelsStore = {
+  // null = todavia no se sembro (primer arranque); [] = el usuario vacio el catalogo a proposito.
+  get(){ try { const v = localStorage.getItem(MODELS_KEY); return v === null ? null : JSON.parse(v); } catch { return null; } },
+  set(list){ try { localStorage.setItem(MODELS_KEY, JSON.stringify(list)); return true; } catch { return false; } },
+  wipe(){ try { localStorage.removeItem(MODELS_KEY); } catch {} }
+};
+
+async function seedModelsFromSupabase(){
+  if (modelsStore.get() !== null) return; // ya sembrado alguna vez, no se re-consulta
+  try {
+    const r = await fetch(SUPABASE_URL + "/rest/v1/models?select=*", {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
+    });
+    if (!r.ok) throw new Error("seed http " + r.status);
+    const rows = await r.json();
+    if (!Array.isArray(rows) || !rows.length) throw new Error("empty seed");
+    modelsStore.set(rows.map(row => ({
+      id: String(row.id), name: row.name, modelId: row.model_id, category: row.category
+    })));
+  } catch {
+    modelsStore.set(DEFAULT_MODELS.map(m => ({ ...m })));
+  }
+  renderModelDatalist();
+  renderModelList();
+}
+
+function renderModelDatalist(){
+  const dl = $("modelList");
+  dl.innerHTML = "";
+  (modelsStore.get() || []).forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m.modelId;
+    dl.appendChild(opt);
+  });
+}
+
+function renderModelList(){
+  const box = $("modelCatalogList");
+  if (!box) return;
+  box.innerHTML = "";
+  const list = modelsStore.get() || [];
+  if (!list.length) { box.appendChild(el("p", "conv-empty", "No hay modelos en el catálogo.")); return; }
+  list.forEach(m => {
+    const row = el("div", "conv-item");
+    const info = el("div", "conv-info");
+    info.appendChild(el("div", "conv-title", m.name));
+    const catLabel = MODEL_CATEGORIES[m.category] || m.category;
+    info.appendChild(el("div", "conv-date model-meta", m.modelId + " · " + catLabel));
+    const del = el("button", "conv-del", "×");
+    del.setAttribute("aria-label", "Borrar modelo del catálogo");
+    del.onclick = e => {
+      e.stopPropagation();
+      if (!confirm("¿Borrar «" + m.name + "» del catálogo?")) return;
+      modelsStore.set((modelsStore.get() || []).filter(x => x.id !== m.id));
+      renderModelList();
+      renderModelDatalist();
+    };
+    row.appendChild(info); row.appendChild(del);
+    box.appendChild(row);
+  });
+}
+
 /* ================= DOM ================= */
 const $ = id => document.getElementById(id.replace(/^#/, ""));
 const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn"), stopBtn = $("stopBtn");
 const sheet = $("sheet"), backdrop = $("backdrop");
 
-function openSheet(){ loadCfgToForm(); loadLookToForm(); sheet.classList.add("open"); backdrop.classList.add("open"); }
+function openSheet(){ loadCfgToForm(); loadLookToForm(); renderModelList(); sheet.classList.add("open"); backdrop.classList.add("open"); }
 function closeSheet(){ sheet.classList.remove("open"); backdrop.classList.remove("open"); closeHistory(); }
 $("settingsBtn").onclick = openSheet;
 backdrop.onclick = closeSheet;
@@ -911,6 +1018,31 @@ $("resetLookBtn").onclick = () => {
   lookStore.set({ ...DEFAULT_LOOK });
   applyLook(DEFAULT_LOOK);
   loadLookToForm();
+};
+
+/* ================= Catálogo de modelos · formulario ================= */
+let newModelCat = "codigo";
+$("modelCatSeg").querySelectorAll("button").forEach(b => {
+  b.onclick = () => { newModelCat = b.dataset.cat; markSeg("modelCatSeg", "cat", newModelCat); };
+});
+
+$("addModelBtn").onclick = () => {
+  const name = $("newModelName").value.trim();
+  const modelId = $("newModelId").value.trim();
+  if (!name || !modelId) { alert("Completa nombre e ID del modelo."); return; }
+  const list = modelsStore.get() || [];
+  list.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, modelId, category: newModelCat });
+  modelsStore.set(list);
+  $("newModelName").value = ""; $("newModelId").value = "";
+  renderModelList();
+  renderModelDatalist();
+};
+
+$("resetModelsBtn").onclick = () => {
+  if (!confirm("¿Restaurar el catálogo de modelos a los valores por defecto?")) return;
+  modelsStore.set(DEFAULT_MODELS.map(m => ({ ...m })));
+  renderModelList();
+  renderModelDatalist();
 };
 
 /* ================= Claves · formulario ================= */
@@ -1144,6 +1276,7 @@ function loadConv(id){
   const lastIdx = messages.length - 1;
   messages.forEach((m, i) => {
     if (m.role === "user") addMsg("user", m.content);
+    else if (m.role === "assistant" && m.image) addImageMsg(m.image, m.content);
     else if (m.role === "assistant" && m.tool_calls && m.tool_calls.length)
       m.tool_calls.forEach(tc => addMsg("tool", "▸ " + tc.function.name + " " + (tc.function.arguments || "")));
     else if (m.role === "assistant" && m.content) {
@@ -1366,8 +1499,12 @@ function clampNum(v, fallback, min, max){
  * se invoca en cada trozo de texto recibido para pintar la respuesta en vivo.
  * Si el endpoint no soporta streaming, cae de vuelta a una respuesta JSON completa.
  */
+function apiBase(cfg){
+  return (cfg.proxy || "https://integrate.api.nvidia.com").replace(/\/$/, "");
+}
+
 async function callModel(cfg, signal, onDelta){
-  const endpoint = cfg.proxy || "https://integrate.api.nvidia.com/v1/chat/completions";
+  const endpoint = apiBase(cfg) + "/v1/chat/completions";
   let tools = [];
   if (cfg.ghToken) tools = tools.concat(toolDefs);
   if (cfg.bridgeUrl) {
@@ -1440,6 +1577,58 @@ async function callModel(cfg, signal, onDelta){
   }
   const finalToolCalls = toolCalls.filter(Boolean);
   return { content, tool_calls: finalToolCalls.length ? finalToolCalls : undefined };
+}
+
+/**
+ * Genera una imagen (modelos de categoría "imagen", p.ej. Flux.2 Klein 4B) llamando
+ * al endpoint de imágenes compatible con OpenAI (`/v1/images/generations`). Devuelve
+ * la imagen en base64 (sin el prefijo data:).
+ */
+async function generateImage(cfg, prompt, signal){
+  const endpoint = apiBase(cfg) + "/v1/images/generations";
+  const r = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.nimKey },
+    body: JSON.stringify({ model: cfg.model, prompt, n: 1, response_format: "b64_json" }),
+    signal
+  });
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    throw new Error("API " + r.status + ": " + t.slice(0, 300));
+  }
+  const data = await r.json().catch(() => null);
+  const b64 = data && data.data && data.data[0] && data.data[0].b64_json;
+  if (!b64) throw new Error("Respuesta inesperada de la API de imágenes (sin b64_json).");
+  return b64;
+}
+
+function currentModelCategory(cfg){
+  const entry = (modelsStore.get() || []).find(m => m.modelId === cfg.model);
+  return entry ? entry.category : null;
+}
+
+function addImageMsg(b64, alt){
+  hideEmpty();
+  const wrap = el("div", "msg assistant");
+  wrap.appendChild(el("div", "role", "MODEL"));
+  const body = el("div", "body");
+  const img = document.createElement("img");
+  img.className = "gen-image";
+  img.src = "data:image/png;base64," + b64;
+  img.alt = alt || "imagen generada";
+  body.appendChild(img);
+  wrap.appendChild(body);
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+  return body;
+}
+
+async function sendImagePrompt(cfg, prompt, signal){
+  showTyping();
+  const b64 = await generateImage(cfg, prompt, signal);
+  hideTyping();
+  addImageMsg(b64, prompt);
+  messages.push({ role: "assistant", content: "[imagen generada]", image: b64 });
 }
 
 const MAX_TOOL_STEPS = 20;
@@ -1537,11 +1726,11 @@ async function send(){
   addMsg("user", text);
   const rollbackLen = messages.length;
   messages.push({ role: "user", content: text });
-  showTyping();
 
   activeAbort = new AbortController();
   try {
-    await agentLoop(cfg, activeAbort.signal);
+    if (currentModelCategory(cfg) === "imagen") await sendImagePrompt(cfg, text, activeAbort.signal);
+    else { showTyping(); await agentLoop(cfg, activeAbort.signal); }
   } catch (e) {
     hideTyping();
     if (e && e.name === "AbortError") {
@@ -1583,6 +1772,8 @@ input.addEventListener("input", autoGrow);
 /* ================= Arranque ================= */
 applyLook(lookStore.get());
 refreshBadges(store.get());
+renderModelDatalist();
+seedModelsFromSupabase();
 
 })();
 </script>
