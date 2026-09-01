@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.9 — vuelta a la estética terminal + Ajustes rediseñado + selector rápido de modelo
+
+### Cambiado
+
+- **Estética terminal restaurada**: se revierte el rediseño visual "Hermes Agent" que se había probado brevemente (logo tipográfico, composer en píldora); vuelven el logo ASCII, la cabecera con corchetes y el composer con borde y símbolo `>`.
+- **Ajustes reestructurado**: los campos de cada pestaña (Apariencia, Modelo, Modelos) se agrupan en tarjetas con rótulo de sección («Personalización», «Fondo y efectos», «Conexión», «Modelo y proxy», «Catálogo», «Añadir modelo») en vez de una lista plana de campos. Los botones «Guardar claves» / «Borrar claves» pasan a un pie fijo (sticky) siempre visible al hacer scroll dentro de la hoja. Se añaden estados `:hover` a inputs, pestañas, tarjetas de tema y botones fantasma.
+
+### Añadido
+
+- **Selector rápido de modelo**: tocar el nombre del modelo en la cabecera abre un desplegable con el catálogo completo (nombre, ID, categoría) para cambiar de modelo con un toque, sin entrar en Ajustes.
+
 ## v1.8 — catálogo de modelos y generación de imágenes
 
 ### Añadido

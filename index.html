@@ -86,9 +86,34 @@
   .brand h1::before{content:"┌─[ ";color:var(--ink-soft);font-weight:400}
   .brand h1::after{content:" ]";color:var(--ink-soft);font-weight:400}
   .brand .model-tag{
-    font-size:10px;color:var(--ink-soft);letter-spacing:0.04em;
+    font:inherit;font-size:10px;color:var(--ink-soft);letter-spacing:0.04em;
     max-width:32vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    background:transparent;border:none;padding:0;cursor:pointer;display:flex;align-items:center;gap:3px;
   }
+  .brand .model-tag:hover{color:var(--ink)}
+  .brand .model-tag .chev{flex-shrink:0;transition:transform 150ms}
+  .brand .model-tag[aria-expanded="true"] .chev{transform:rotate(180deg)}
+
+  /* ---------- Selector rápido de modelo ---------- */
+  .model-picker{
+    position:fixed;left:14px;right:14px;top:56px;z-index:35;
+    background:var(--bg);border:1px solid var(--line-bright);border-radius:var(--radius);
+    max-height:60vh;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,0.5);
+    opacity:0;pointer-events:none;transform:translateY(-6px);transition:opacity 150ms,transform 150ms;
+  }
+  .model-picker.open{opacity:1;pointer-events:auto;transform:none}
+  .model-picker-item{
+    display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;
+    background:transparent;border:none;border-bottom:1px dashed var(--line);
+    padding:10px 14px;cursor:pointer;color:var(--ink);
+  }
+  .model-picker-item:last-child{border-bottom:none}
+  .model-picker-item:hover{background:var(--surface)}
+  .model-picker-item.active{background:color-mix(in srgb, var(--accent) 12%, transparent)}
+  .model-picker-item .mp-name{font-size:12.5px;display:flex;align-items:center;gap:6px}
+  .model-picker-item.active .mp-name::before{content:"✓";color:var(--accent)}
+  .model-picker-item .mp-meta{font-size:9.5px;color:var(--ink-soft);letter-spacing:0.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .model-picker-empty{padding:16px 14px;font-size:11.5px;color:var(--ink-soft)}
   .icon-btn{
     background:transparent;border:1px solid var(--line);border-radius:var(--radius);
     width:34px;height:34px;display:flex;align-items:center;justify-content:center;
@@ -361,6 +386,31 @@
   .switch-row input[type=checkbox]:checked{background:var(--accent);border-color:var(--accent)}
   .switch-row input[type=checkbox]:checked::after{transform:translateX(18px);background:var(--accent-ink)}
 
+  /* ---------- Agrupación de campos (Ajustes) ---------- */
+  .field-group{
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 14px 0;margin-bottom:18px;background:color-mix(in srgb, var(--surface) 45%, transparent);
+  }
+  .field-group > *:last-child{margin-bottom:14px}
+  .group-label{
+    font-size:9.5px;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-soft);
+    margin-bottom:12px;opacity:0.8;
+  }
+  .field input:hover:not(:focus),.field textarea:hover:not(:focus){border-color:var(--line-bright)}
+  .seg button:hover:not(.active){color:var(--ink)}
+  .swatch-card:hover:not(.active){border-color:var(--line-bright)}
+  .btn-ghost:hover{border-color:var(--line-bright);color:var(--ink)}
+
+  /* ---------- Pie fijo de Ajustes ---------- */
+  .sheet-footer{
+    position:sticky;bottom:calc(-28px - env(safe-area-inset-bottom));
+    margin:20px -18px calc(-28px - env(safe-area-inset-bottom));
+    padding:14px 18px calc(14px + env(safe-area-inset-bottom));
+    background:var(--panel);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+    border-top:1px solid var(--line);
+  }
+  .sheet-footer .btn-ghost{margin-top:8px}
+
   /* ---------- Historial ---------- */
   .conv-item{
     display:flex;align-items:center;gap:10px;
@@ -395,7 +445,10 @@
 <header>
   <div class="brand">
     <h1>Vok Chat</h1>
-    <span class="model-tag" id="modelTag">sin configurar</span>
+    <button class="model-tag" id="modelTag" type="button" aria-haspopup="true" aria-expanded="false" title="Elegir modelo">
+      <span id="modelTagText">sin configurar</span>
+      <svg class="chev" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
   </div>
   <div class="header-actions">
     <button class="icon-btn" id="historyBtn" title="Conversaciones" aria-label="Conversaciones">
@@ -410,6 +463,8 @@
   </div>
 </header>
 
+<div class="model-picker" id="modelPicker"></div>
+
 <main id="chat">
   <div class="empty-state" id="emptyState">
     <pre class="logo"><span class="bot">      ▄
@@ -418,7 +473,7 @@
 ▄╣   ▄▄▄   ╠▄
  ╚═════════╝</span>
 <span class="wordmark">V O K _ C H A T</span>
-<span class="ver">v1.8 // terminal</span></pre>
+<span class="ver">v1.9 // terminal</span></pre>
     <p>Configura tu API key en <kbd>AJUSTES</kbd>. Con un token de GitHub el modelo puede leer y editar tus repos, y con un bridge MCP puede navegar por internet.</p>
   </div>
 </main>
@@ -455,94 +510,105 @@
       <div class="swatch-grid" id="themeGrid"></div>
     </div>
 
-    <div class="field">
-      <label>Fuente</label>
-      <div class="seg small" id="fontSeg">
-        <button data-font="mono">Mono</button>
-        <button data-font="sans">Sans</button>
-        <button data-font="serif">Serif</button>
+    <div class="field-group">
+      <div class="group-label">Personalización</div>
+      <div class="field">
+        <label>Fuente</label>
+        <div class="seg small" id="fontSeg">
+          <button data-font="mono">Mono</button>
+          <button data-font="sans">Sans</button>
+          <button data-font="serif">Serif</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Densidad</label>
+        <div class="seg small" id="densitySeg">
+          <button data-density="compact">Compacta</button>
+          <button data-density="cozy">Cómoda</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Esquinas · estructura</label>
+        <div class="seg small" id="radiusSeg">
+          <button data-radius="theme">Auto</button>
+          <button data-radius="sharp">Recto</button>
+          <button data-radius="soft">Suave</button>
+          <button data-radius="round">Redondo</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Color de acento</label>
+        <div class="accent-row">
+          <input type="color" id="accentInput" aria-label="Color de acento">
+          <button class="btn-ghost mini" id="accentReset">Usar el del tema</button>
+        </div>
       </div>
     </div>
 
-    <div class="field">
-      <label>Densidad</label>
-      <div class="seg small" id="densitySeg">
-        <button data-density="compact">Compacta</button>
-        <button data-density="cozy">Cómoda</button>
+    <div class="field-group">
+      <div class="group-label">Fondo y efectos</div>
+      <div class="field">
+        <label>Fondo</label>
+        <div class="seg small" id="bgSeg">
+          <button data-bg="theme">Del tema</button>
+          <button data-bg="none">Ninguno</button>
+          <button data-bg="custom">Imagen…</button>
+        </div>
       </div>
-    </div>
 
-    <div class="field">
-      <label>Esquinas · estructura</label>
-      <div class="seg small" id="radiusSeg">
-        <button data-radius="theme">Auto</button>
-        <button data-radius="sharp">Recto</button>
-        <button data-radius="soft">Suave</button>
-        <button data-radius="round">Redondo</button>
+      <div class="field" id="bgUrlField" hidden>
+        <label>Imagen de fondo</label>
+        <div class="accent-row">
+          <button class="btn-ghost mini" id="bgFileBtn" type="button">Elegir del dispositivo…</button>
+          <button class="btn-ghost mini" id="bgFileClear" type="button">Quitar</button>
+        </div>
+        <input id="bgFile" type="file" accept="image/*" hidden>
+        <div class="hint" id="bgFileName">Ninguna imagen seleccionada.</div>
+        <div class="hint">Se guarda solo en este dispositivo (se comprime automáticamente).</div>
       </div>
-    </div>
 
-    <div class="field">
-      <label>Color de acento</label>
-      <div class="accent-row">
-        <input type="color" id="accentInput" aria-label="Color de acento">
-        <button class="btn-ghost mini" id="accentReset">Usar el del tema</button>
+      <div class="field">
+        <label>Opacidad del fondo · <span id="bgOpacityVal">60%</span></label>
+        <input type="range" id="bgOpacity" min="0" max="100" value="60">
       </div>
+
+      <label class="switch-row"><span>Scanlines · líneas CRT</span><input type="checkbox" id="scanlinesTgl"></label>
+      <label class="switch-row"><span>Grano</span><input type="checkbox" id="grainTgl"></label>
     </div>
-
-    <hr class="divider">
-
-    <div class="field">
-      <label>Fondo</label>
-      <div class="seg small" id="bgSeg">
-        <button data-bg="theme">Del tema</button>
-        <button data-bg="none">Ninguno</button>
-        <button data-bg="custom">Imagen…</button>
-      </div>
-    </div>
-
-    <div class="field" id="bgUrlField" hidden>
-      <label>Imagen de fondo</label>
-      <div class="accent-row">
-        <button class="btn-ghost mini" id="bgFileBtn" type="button">Elegir del dispositivo…</button>
-        <button class="btn-ghost mini" id="bgFileClear" type="button">Quitar</button>
-      </div>
-      <input id="bgFile" type="file" accept="image/*" hidden>
-      <div class="hint" id="bgFileName">Ninguna imagen seleccionada.</div>
-      <div class="hint">Se guarda solo en este dispositivo (se comprime automáticamente).</div>
-    </div>
-
-    <div class="field">
-      <label>Opacidad del fondo · <span id="bgOpacityVal">60%</span></label>
-      <input type="range" id="bgOpacity" min="0" max="100" value="60">
-    </div>
-
-    <label class="switch-row"><span>Scanlines · líneas CRT</span><input type="checkbox" id="scanlinesTgl"></label>
-    <label class="switch-row"><span>Grano</span><input type="checkbox" id="grainTgl"></label>
 
     <button class="btn-ghost" id="resetLookBtn">Restablecer apariencia</button>
   </div>
 
   <!-- ---- Modelo ---- -->
   <div class="panel" data-panel="model">
-    <div class="status-row">
-      <span class="badge" id="badgeNim">NIM · sin key</span>
+    <div class="field-group">
+      <div class="group-label">Conexión</div>
+      <div class="status-row">
+        <span class="badge" id="badgeNim">NIM · sin key</span>
+      </div>
+      <div class="field">
+        <label for="nimKey">NVIDIA NIM · API key</label>
+        <input id="nimKey" type="password" placeholder="nvapi-…" autocomplete="off">
+        <div class="hint">La consigues gratis en build.nvidia.com</div>
+      </div>
     </div>
-    <div class="field">
-      <label for="nimKey">NVIDIA NIM · API key</label>
-      <input id="nimKey" type="password" placeholder="nvapi-…" autocomplete="off">
-      <div class="hint">La consigues gratis en build.nvidia.com</div>
-    </div>
-    <div class="field">
-      <label for="model">Modelo</label>
-      <input id="model" list="modelList" placeholder="meta/llama-3.1-70b-instruct" autocomplete="off">
-      <datalist id="modelList"></datalist>
-      <div class="hint">Las opciones vienen de tu catálogo (pestaña «Modelos»). Para usar las herramientas de GitHub, elige un modelo de categoría código/razonamiento con function calling (Llama 3.1/3.3, Mistral Large, Nemotron).</div>
-    </div>
-    <div class="field">
-      <label for="proxy">Proxy CORS · necesario para NIM</label>
-      <input id="proxy" type="url" placeholder="https://tu-worker.workers.dev" autocomplete="off">
-      <div class="hint">La API de NVIDIA no permite llamadas directas desde el navegador. Despliega el mini-proxy de abajo (Cloudflare Worker gratis) y pega aquí su URL.</div>
+
+    <div class="field-group">
+      <div class="group-label">Modelo y proxy</div>
+      <div class="field">
+        <label for="model">Modelo</label>
+        <input id="model" list="modelList" placeholder="meta/llama-3.1-70b-instruct" autocomplete="off">
+        <datalist id="modelList"></datalist>
+        <div class="hint">Las opciones vienen de tu catálogo (pestaña «Modelos»). Para usar las herramientas de GitHub, elige un modelo de categoría código/razonamiento con function calling (Llama 3.1/3.3, Mistral Large, Nemotron).</div>
+      </div>
+      <div class="field">
+        <label for="proxy">Proxy CORS · necesario para NIM</label>
+        <input id="proxy" type="url" placeholder="https://tu-worker.workers.dev" autocomplete="off">
+        <div class="hint">La API de NVIDIA no permite llamadas directas desde el navegador. Despliega el mini-proxy de abajo (Cloudflare Worker gratis) y pega aquí su URL.</div>
+      </div>
     </div>
     <details class="help">
       <summary>Parámetros avanzados</summary>
@@ -594,31 +660,34 @@ function cors() {
 
   <!-- ---- Modelos (catálogo) ---- -->
   <div class="panel" data-panel="models">
-    <div class="hint" style="margin-bottom:14px">Catálogo de modelos disponibles en la pestaña «Modelo». Se guarda solo en este dispositivo; la primera vez se siembra desde una tabla pública de solo lectura.</div>
-
-    <div id="modelCatalogList"></div>
-
-    <hr class="divider">
-
-    <div class="field">
-      <label for="newModelName">Nombre</label>
-      <input id="newModelName" type="text" placeholder="p. ej. Kimi K3" autocomplete="off">
+    <div class="field-group">
+      <div class="group-label">Catálogo</div>
+      <div class="hint" style="margin-bottom:12px">Modelos disponibles en la pestaña «Modelo» y en el selector rápido de la cabecera. Se guarda solo en este dispositivo; la primera vez se siembra desde una tabla pública de solo lectura.</div>
+      <div id="modelCatalogList"></div>
     </div>
-    <div class="field">
-      <label for="newModelId">ID del modelo (NIM)</label>
-      <input id="newModelId" type="text" placeholder="p. ej. moonshotai/kimi-k2-instruct" autocomplete="off">
-    </div>
-    <div class="field">
-      <label>Categoría</label>
-      <div class="seg small" id="modelCatSeg">
-        <button class="active" data-cat="codigo">Código</button>
-        <button data-cat="razonamiento">Razonamiento</button>
-        <button data-cat="imagen">Imagen</button>
+
+    <div class="field-group">
+      <div class="group-label">Añadir modelo</div>
+      <div class="field">
+        <label for="newModelName">Nombre</label>
+        <input id="newModelName" type="text" placeholder="p. ej. Kimi K3" autocomplete="off">
       </div>
-      <div class="hint">Los modelos de categoría «Imagen» generan una imagen en vez de responder con texto.</div>
-    </div>
-    <div class="btn-row">
-      <button class="btn-ghost mini" id="addModelBtn">Añadir modelo</button>
+      <div class="field">
+        <label for="newModelId">ID del modelo (NIM)</label>
+        <input id="newModelId" type="text" placeholder="p. ej. moonshotai/kimi-k2-instruct" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Categoría</label>
+        <div class="seg small" id="modelCatSeg">
+          <button class="active" data-cat="codigo">Código</button>
+          <button data-cat="razonamiento">Razonamiento</button>
+          <button data-cat="imagen">Imagen</button>
+        </div>
+        <div class="hint">Los modelos de categoría «Imagen» generan una imagen en vez de responder con texto.</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-ghost mini" id="addModelBtn">Añadir modelo</button>
+      </div>
     </div>
 
     <button class="btn-ghost" id="resetModelsBtn">Restaurar valores por defecto</button>
@@ -656,8 +725,10 @@ function cors() {
     </div>
   </div>
 
-  <button class="btn-primary" id="saveBtn">Guardar claves</button>
-  <button class="btn-ghost" id="wipeBtn">Borrar claves de este dispositivo</button>
+  <div class="sheet-footer">
+    <button class="btn-primary" id="saveBtn">Guardar claves</button>
+    <button class="btn-ghost" id="wipeBtn">Borrar claves de este dispositivo</button>
+  </div>
 </div>
 
 <!-- ===== Conversaciones ===== -->
@@ -891,18 +962,66 @@ function renderModelList(){
   });
 }
 
+function renderModelPicker(){
+  const box = $("modelPicker");
+  box.innerHTML = "";
+  const list = modelsStore.get() || [];
+  const current = (store.get() || {}).model || "";
+  if (!list.length) {
+    box.appendChild(el("div", "model-picker-empty", "Tu catálogo está vacío. Añade modelos en Ajustes → Modelos."));
+    return;
+  }
+  list.forEach(m => {
+    const item = el("button", "model-picker-item" + (m.modelId === current ? " active" : ""));
+    item.type = "button";
+    const catLabel = MODEL_CATEGORIES[m.category] || m.category;
+    item.appendChild(el("span", "mp-name", m.name));
+    item.appendChild(el("span", "mp-meta", m.modelId + " · " + catLabel));
+    item.onclick = () => {
+      const c = store.get();
+      c.model = m.modelId;
+      store.set(c);
+      refreshBadges(c);
+      closeModelPicker();
+    };
+    box.appendChild(item);
+  });
+}
+
+function openModelPicker(){
+  renderModelPicker();
+  const headerRect = document.querySelector("header").getBoundingClientRect();
+  $("modelPicker").style.top = (headerRect.bottom + 4) + "px";
+  $("modelPicker").classList.add("open");
+  $("modelTag").setAttribute("aria-expanded", "true");
+}
+function closeModelPicker(){
+  $("modelPicker").classList.remove("open");
+  $("modelTag").setAttribute("aria-expanded", "false");
+}
+function toggleModelPicker(){
+  $("modelPicker").classList.contains("open") ? closeModelPicker() : openModelPicker();
+}
+
 /* ================= DOM ================= */
 const $ = id => document.getElementById(id.replace(/^#/, ""));
 const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn"), stopBtn = $("stopBtn");
 const sheet = $("sheet"), backdrop = $("backdrop");
 
-function openSheet(){ loadCfgToForm(); loadLookToForm(); renderModelList(); sheet.classList.add("open"); backdrop.classList.add("open"); }
+function openSheet(){ closeModelPicker(); loadCfgToForm(); loadLookToForm(); renderModelList(); sheet.classList.add("open"); backdrop.classList.add("open"); }
 function closeSheet(){ sheet.classList.remove("open"); backdrop.classList.remove("open"); closeHistory(); }
 $("settingsBtn").onclick = openSheet;
 backdrop.onclick = closeSheet;
 
+$("modelTag").onclick = e => { e.stopPropagation(); toggleModelPicker(); };
+document.addEventListener("click", e => {
+  if (!$("modelPicker").classList.contains("open")) return;
+  if (!$("modelPicker").contains(e.target) && e.target !== $("modelTag")) closeModelPicker();
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModelPicker(); });
+
 const historySheet = $("historySheet");
-function openHistory(){ renderHistory(); historySheet.classList.add("open"); backdrop.classList.add("open"); }
+function openHistory(){ closeModelPicker(); renderHistory(); historySheet.classList.add("open"); backdrop.classList.add("open"); }
 function closeHistory(){ historySheet.classList.remove("open"); if (!sheet.classList.contains("open")) backdrop.classList.remove("open"); }
 $("historyBtn").onclick = openHistory;
 
@@ -1069,7 +1188,7 @@ function refreshBadges(c){
   bg.classList.toggle("ok", !!c.ghToken);
   bb.textContent = c.bridgeUrl ? "Navegador · on" : "Navegador · off";
   bb.classList.toggle("ok", !!c.bridgeUrl);
-  $("modelTag").textContent = c.model || "sin configurar";
+  $("modelTagText").textContent = c.model || "sin configurar";
 }
 $("saveBtn").onclick = () => {
   const c = {
