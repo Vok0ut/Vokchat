@@ -11,6 +11,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@700;800&display=swap" rel="stylesheet">
 
 <style>
   :root{
@@ -42,6 +45,7 @@
     --sans:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
     --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,'Times New Roman',serif;
     --font:var(--mono);
+    --font-display:'Roboto Slab',var(--serif);
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html,body{height:100%}
@@ -80,11 +84,9 @@
   }
   .brand{display:flex;align-items:baseline;gap:10px;min-width:0}
   .brand h1{
-    font-size:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+    font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
     white-space:nowrap;color:var(--ink);
   }
-  .brand h1::before{content:"┌─[ ";color:var(--ink-soft);font-weight:400}
-  .brand h1::after{content:" ]";color:var(--ink-soft);font-weight:400}
   .brand .model-tag{
     font-size:10px;color:var(--ink-soft);letter-spacing:0.04em;
     max-width:32vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -157,36 +159,23 @@
   }
   .empty-state{
     height:100%;display:flex;flex-direction:column;align-items:center;
-    justify-content:center;text-align:center;gap:14px;color:var(--ink-soft);
+    justify-content:center;text-align:center;gap:14px;color:var(--ink-soft);padding:0 24px;
   }
-  .empty-state pre.logo{
-    font-family:var(--mono);font-size:11px;line-height:1.35;color:var(--ink);
-    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 18px;
-    text-align:center;position:relative;
+  .hero-word{
+    font-family:var(--font-display);font-weight:800;letter-spacing:0.03em;
+    text-transform:uppercase;line-height:1;color:var(--ink);
+    font-size:clamp(32px, 11vw, 58px);
   }
   .empty-state p{
-    font-size:11.5px;max-width:290px;background:var(--panel);
-    border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px;
+    font-size:12px;max-width:300px;line-height:1.65;color:var(--ink-soft);
   }
   .empty-state kbd{
     font-family:var(--mono);font-size:10.5px;border:1px solid var(--line-bright);
     background:var(--surface);border-radius:calc(var(--radius) / 2);padding:1px 6px;color:var(--ink);
   }
-  .logo .bot{
-    color:var(--accent);
-    text-shadow:0 0 8px color-mix(in srgb, var(--accent) 45%, transparent),
-                0 0 20px color-mix(in srgb, var(--accent) 20%, transparent);
-    animation:glow 2.6s ease-in-out infinite;display:inline-block;text-align:left;
+  .hero-ver{
+    font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);opacity:0.55;
   }
-  .logo .wordmark{
-    display:block;margin-top:8px;color:var(--ink);font-weight:700;letter-spacing:0.1em;
-  }
-  .logo .ver{display:block;color:var(--ink-soft);font-size:10px;margin-top:2px}
-  @keyframes glow{
-    0%,100%{text-shadow:0 0 8px color-mix(in srgb,var(--accent) 45%,transparent),0 0 20px color-mix(in srgb,var(--accent) 20%,transparent)}
-    50%{text-shadow:0 0 12px color-mix(in srgb,var(--accent) 70%,transparent),0 0 28px color-mix(in srgb,var(--accent) 32%,transparent)}
-  }
-  @media (prefers-reduced-motion: reduce){.logo .bot{animation:none}}
 
   /* cursor parpadeante */
   .typing{display:inline-block}
@@ -195,31 +184,31 @@
 
   /* ---------- Composer ---------- */
   .composer{
-    border-top:1px solid var(--line);
-    padding:calc(12px * var(--sp)) 14px calc(12px * var(--sp) + env(safe-area-inset-bottom));
-    background:var(--panel);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
-    display:flex;gap:10px;align-items:flex-end;position:relative;
+    padding:10px 14px calc(10px * var(--sp) + env(safe-area-inset-bottom));
+    background:var(--bg);position:relative;
   }
-  .composer::before{
-    content:">";position:absolute;left:26px;bottom:calc(22px * var(--sp) + env(safe-area-inset-bottom));
-    color:var(--ink-soft);pointer-events:none;z-index:1;font-family:var(--mono);
+  .composer-pill{
+    display:flex;gap:6px;align-items:flex-end;
+    background:var(--surface);border:1px solid var(--line);
+    border-radius:26px;padding:6px 6px 6px 18px;
+    transition:border-color 150ms;
   }
+  .composer-pill:focus-within{border-color:var(--accent)}
   .composer textarea{
-    flex:1;border:1px solid var(--line);border-radius:var(--radius);resize:none;
+    flex:1;border:none;resize:none;background:transparent;
     font-size:var(--base-size);line-height:1.5;
-    padding:10px 12px 10px 28px;max-height:130px;background:var(--surface);
+    padding:10px 4px;max-height:130px;
     color:var(--ink);outline:none;caret-color:var(--accent);
   }
-  .composer textarea:focus{border-color:var(--accent)}
   .composer textarea::placeholder{color:var(--ink-soft);opacity:0.7}
   .send-btn{
-    background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:var(--radius);
-    width:42px;height:42px;display:flex;align-items:center;justify-content:center;
-    cursor:pointer;flex-shrink:0;
+    background:var(--accent);color:var(--accent-ink);border:none;border-radius:50%;
+    width:38px;height:38px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;flex-shrink:0;margin-bottom:2px;
   }
   .send-btn:active{filter:brightness(0.85)}
-  .send-btn:disabled{background:var(--surface);color:var(--ink-soft);border-color:var(--line)}
-  #stopBtn{background:var(--surface);color:var(--ink);border-color:var(--line-bright)}
+  .send-btn:disabled{background:var(--line);color:var(--ink-soft)}
+  #stopBtn{background:var(--line-bright);color:var(--ink)}
 
   /* ---------- Sheets ---------- */
   .sheet-backdrop{
@@ -240,10 +229,8 @@
     margin:2px auto 14px;opacity:0.7;
   }
   .sheet h2{
-    font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:14px;color:var(--ink);
+    font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:14px;color:var(--ink-soft);
   }
-  .sheet h2::before{content:"── ";color:var(--ink-soft)}
-  .sheet h2::after{content:" ──";color:var(--ink-soft)}
   .sheet .sub{font-size:11px;color:var(--ink-soft);margin-bottom:16px}
 
   .field{margin-bottom:calc(16px * var(--sp))}
@@ -412,25 +399,22 @@
 
 <main id="chat">
   <div class="empty-state" id="emptyState">
-    <pre class="logo"><span class="bot">      ▄
- ╔════█════╗
- ║ ▀▀   ▀▀ ║
-▄╣   ▄▄▄   ╠▄
- ╚═════════╝</span>
-<span class="wordmark">V O K _ C H A T</span>
-<span class="ver">v1.8 // terminal</span></pre>
-    <p>Configura tu API key en <kbd>AJUSTES</kbd>. Con un token de GitHub el modelo puede leer y editar tus repos, y con un bridge MCP puede navegar por internet.</p>
+    <h2 class="hero-word">Vok Chat</h2>
+    <p>Configura tu API key en <kbd>AJUSTES</kbd> para empezar. Con un token de GitHub el modelo puede leer y editar tus repos, y con un bridge MCP puede navegar por internet.</p>
+    <span class="hero-ver">v1.9</span>
   </div>
 </main>
 
 <div class="composer">
-  <textarea id="input" rows="1" placeholder="Escribe un mensaje…"></textarea>
-  <button class="send-btn" id="stopBtn" aria-label="Detener generación" hidden>
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
-  </button>
-  <button class="send-btn" id="sendBtn" aria-label="Enviar">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-  </button>
+  <div class="composer-pill">
+    <textarea id="input" rows="1" placeholder="Escribe un mensaje…"></textarea>
+    <button class="send-btn" id="stopBtn" aria-label="Detener generación" hidden>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+    </button>
+    <button class="send-btn" id="sendBtn" aria-label="Enviar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+    </button>
+  </div>
 </div>
 
 <div class="sheet-backdrop" id="backdrop"></div>

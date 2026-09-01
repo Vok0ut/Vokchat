@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.9 — rediseño de interfaz
+
+### Cambiado
+
+- **Estado vacío**: el logo ASCII se sustituye por un wordmark tipográfico grande (`Roboto Slab`, vía Google Fonts) sobre el fondo, sin caja ni borde alrededor del texto de ayuda.
+- **Cabecera**: se quitan los corchetes ASCII (`┌─[ … ]`) alrededor del nombre de la app.
+- **Composer**: el campo de mensaje y los botones de enviar/detener pasan a vivir dentro de una píldora redondeada flotante, sin la barra superior con borde ni el símbolo `>` de prompt.
+- **Hojas de Ajustes/Conversaciones**: los títulos pierden las comillas ASCII (`── … ──`) y pasan a un rótulo de sección en mayúsculas, más discreto.
+- Ningún cambio de lógica: todos los `id`, funciones y flujos de datos (catálogo de modelos, generación de imágenes, historial, ajustes) quedan igual — es un cambio puramente visual.
+
 ## v1.8 — catálogo de modelos y generación de imágenes
 
 ### Añadido
