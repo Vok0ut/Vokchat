@@ -1,14 +1,15 @@
 # Changelog
 
-## v1.9 — rediseño de interfaz
+## v1.9 — vuelta a la estética terminal + Ajustes rediseñado + selector rápido de modelo
 
 ### Cambiado
 
-- **Estado vacío**: el logo ASCII se sustituye por un wordmark tipográfico grande (`Roboto Slab`, vía Google Fonts) sobre el fondo, sin caja ni borde alrededor del texto de ayuda.
-- **Cabecera**: se quitan los corchetes ASCII (`┌─[ … ]`) alrededor del nombre de la app.
-- **Composer**: el campo de mensaje y los botones de enviar/detener pasan a vivir dentro de una píldora redondeada flotante, sin la barra superior con borde ni el símbolo `>` de prompt.
-- **Hojas de Ajustes/Conversaciones**: los títulos pierden las comillas ASCII (`── … ──`) y pasan a un rótulo de sección en mayúsculas, más discreto.
-- Ningún cambio de lógica: todos los `id`, funciones y flujos de datos (catálogo de modelos, generación de imágenes, historial, ajustes) quedan igual — es un cambio puramente visual.
+- **Estética terminal restaurada**: se revierte el rediseño visual "Hermes Agent" que se había probado brevemente (logo tipográfico, composer en píldora); vuelven el logo ASCII, la cabecera con corchetes y el composer con borde y símbolo `>`.
+- **Ajustes reestructurado**: los campos de cada pestaña (Apariencia, Modelo, Modelos) se agrupan en tarjetas con rótulo de sección («Personalización», «Fondo y efectos», «Conexión», «Modelo y proxy», «Catálogo», «Añadir modelo») en vez de una lista plana de campos. Los botones «Guardar claves» / «Borrar claves» pasan a un pie fijo (sticky) siempre visible al hacer scroll dentro de la hoja. Se añaden estados `:hover` a inputs, pestañas, tarjetas de tema y botones fantasma.
+
+### Añadido
+
+- **Selector rápido de modelo**: tocar el nombre del modelo en la cabecera abre un desplegable con el catálogo completo (nombre, ID, categoría) para cambiar de modelo con un toque, sin entrar en Ajustes.
 
 ## v1.8 — catálogo de modelos y generación de imágenes
 
