@@ -1,12 +1,39 @@
 # Changelog
 
+## v2.1 — clave de API por modelo
+
+### Cambiado
+
+- **Clave de API por modelo**: se sustituye la única clave NIM global por una
+  clave propia por cada entrada del catálogo (Ajustes → Modelos). Al añadir
+  un modelo ahora se piden 4 campos (nombre, ID del modelo, clave API,
+  categoría) en vez de 3, y cada fila del catálogo existente tiene su propio
+  campo de clave editable en línea (con guardado inmediato, sin botón
+  aparte), marcado con una insignia «Sin clave» mientras no se rellene. Los
+  usuarios con una clave global ya configurada la heredan automáticamente en
+  los modelos que aún no tengan clave propia, sin sobrescribir las que ya
+  estuvieran puestas.
+- **Pestaña «Modelo» eliminada**: sus otros campos (Proxy CORS, prompt de
+  sistema, tokens máximos, y la documentación del Worker de Cloudflare) se
+  trasladan a la pestaña «Modelos», que pasa a ser la única con ajustes de
+  modelo/conexión. Esto corrige además el redirect confuso al elegir un
+  modelo sin clave configurada: antes de enviar un mensaje aterrizaba en una
+  pestaña «Modelo» separada del catálogo; ahora aterriza directo en
+  «Modelos», junto al campo de clave que hay que rellenar.
+
+### Técnico
+
+- `CatalogModel` gana el campo `apiKey`; `Settings.nimKey` se elimina del
+  tipo. `callModel`/`generateImage`/`agentLoop` reciben la clave resuelta del
+  modelo activo como parámetro explícito en vez de leer una clave global.
+
 ## v2.0 — migración a Next.js + TypeScript + Tailwind + shadcn/ui
 
 ### Cambiado
 
 - **Reescritura completa del frontend**: Vok Chat deja de ser un `index.html` estático sin build y pasa a ser una app Next.js 16 (App Router) + React 19 + TypeScript, con Tailwind CSS v4 y componentes shadcn/ui (estilo «New York»). Todo el estado sigue viviendo en `localStorage` con las mismas claves y formas exactas que antes (`nimchat.cfg.v1`, `nimchat.convs.v1`, `vok.models.v1`, con la misma distinción crítica `null`/`[]` en el catálogo), así que nadie pierde ajustes, catálogo ni historial al migrar. Las integraciones externas (NVIDIA NIM vía proxy CORS, Supabase para la semilla del catálogo) no se reconfiguran: mismos endpoints, mismas claves.
 - **Nueva identidad visual**: se abandona la estética terminal (ASCII, corchetes, scanlines, grano, fondo personalizado) por una interfaz clara con tarjetas de sombra suave, esquinas muy redondeadas y transiciones tipo resorte, con modo claro/oscuro/sistema (`next-themes`) y un color de acento personalizable como único remanente de personalización visual (nueva clave `vok.appearance.v1`; `vok.look.v1` queda huérfana sin migrarse activamente).
-- **Composer rediseñado**: nuevo composer expandible en píldora con selector de modelo y de «creatividad» (3 niveles de `temperature`, con el valor numérico exacto seguro accesible en Ajustes → Modelo), grabación de voz real (Web Speech API, sin fallback simulado — si el navegador no la soporta, la entrada de voz queda deshabilitada) y adjuntos de imagen reales enviados como contenido multi-parte estilo OpenAI a los modelos.
+- **Composer rediseñado**: nuevo composer expandible en píldora con selector de modelo y de «creatividad» (3 niveles de `temperature`, con el valor numérico exacto seguro accesible en Ajustes → Modelos), grabación de voz real (Web Speech API, sin fallback simulado — si el navegador no la soporta, la entrada de voz queda deshabilitada) y adjuntos de imagen reales enviados como contenido multi-parte estilo OpenAI a los modelos.
 
 ### Técnico
 

@@ -8,7 +8,6 @@ import type { Settings } from "@/lib/types";
 export const CFG_KEY = "nimchat.cfg.v1";
 
 export const DEFAULT_SETTINGS: Settings = {
-  nimKey: "",
   model: "",
   proxy: "",
   systemPrompt: "",

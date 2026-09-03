@@ -24,7 +24,7 @@ export function ChatApp() {
     setSettingsOpen(true);
   };
 
-  const chat = useChat({ onMissingKey: () => openSettingsAt("modelo") });
+  const chat = useChat({ onMissingKey: () => openSettingsAt("modelos") });
 
   return (
     <div className="flex h-dvh flex-col bg-background">

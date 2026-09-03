@@ -29,6 +29,8 @@ export function useChat(options: UseChatOptions = {}) {
   const abortRef = useRef<AbortController | null>(null);
 
   const category = getModelCategory(catalog, settings.model);
+  const activeModel = catalog.find((m) => m.modelId === settings.model);
+  const activeApiKey = activeModel?.apiKey || "";
 
   const persist = useCallback(
     (msgs: ChatMessage[]) => {
@@ -42,7 +44,7 @@ export function useChat(options: UseChatOptions = {}) {
   const runTextTurn = useCallback(
     async (base: ChatMessage[], signal: AbortSignal) => {
       setStreamingText("");
-      const result = await agentLoop(settings, base, signal, {
+      const result = await agentLoop(settings, activeApiKey, base, signal, {
         onDelta: (partial) => setStreamingText(partial),
         onToolCallStart: () => {
           // el propio onMessagesUpdate ya refleja el tool_call en el mensaje del asistente;
@@ -57,12 +59,12 @@ export function useChat(options: UseChatOptions = {}) {
       setStreamingText(null);
       return result.messages;
     },
-    [settings, confirmWrite],
+    [settings, activeApiKey, confirmWrite],
   );
 
   const runImageTurn = useCallback(
     async (base: ChatMessage[], prompt: string, signal: AbortSignal) => {
-      const b64 = await generateImage(settings, prompt, signal);
+      const b64 = await generateImage(settings, activeApiKey, prompt, signal);
       const withImage: ChatMessage[] = [
         ...base,
         { role: "assistant", content: "[imagen generada]", image: b64 },
@@ -70,14 +72,14 @@ export function useChat(options: UseChatOptions = {}) {
       setMessages(withImage);
       return withImage;
     },
-    [settings],
+    [settings, activeApiKey],
   );
 
   const send = useCallback(
     async (text: string, images?: string[]) => {
       const trimmed = text.trim();
       if ((!trimmed && !(images && images.length)) || busy) return;
-      if (!settings.nimKey) {
+      if (!activeApiKey) {
         options.onMissingKey?.();
         return;
       }
@@ -114,7 +116,7 @@ export function useChat(options: UseChatOptions = {}) {
         setBusy(false);
       }
     },
-    [busy, settings.nimKey, messages, category, runImageTurn, runTextTurn, persist, options],
+    [busy, activeApiKey, messages, category, runImageTurn, runTextTurn, persist, options],
   );
 
   const stop = useCallback(() => {
@@ -125,6 +127,10 @@ export function useChat(options: UseChatOptions = {}) {
     if (busy) return;
     const last = messages[messages.length - 1];
     if (!last || last.role !== "assistant") return;
+    if (!activeApiKey) {
+      options.onMissingKey?.();
+      return;
+    }
     const base = messages.slice(0, -1);
     setMessages(base);
     setBusy(true);
@@ -151,7 +157,7 @@ export function useChat(options: UseChatOptions = {}) {
       abortRef.current = null;
       setBusy(false);
     }
-  }, [busy, messages, category, runImageTurn, runTextTurn, persist]);
+  }, [busy, messages, category, activeApiKey, runImageTurn, runTextTurn, persist, options]);
 
   const newConversation = useCallback(() => {
     if (messages.length) persist(messages);

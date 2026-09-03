@@ -5,7 +5,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { AppearanceTab } from "./appearance-tab";
-import { ModelTab } from "./model-tab";
 import { ModelsTab } from "./models-tab";
 import { GithubTab } from "./github-tab";
 import { BrowserTab } from "./browser-tab";
@@ -61,9 +60,8 @@ export function SettingsSheet({
           <SheetTitle>Ajustes</SheetTitle>
         </SheetHeader>
         <Tabs defaultValue={initialTab || "apariencia"} className="flex min-h-0 flex-1 flex-col px-5">
-          <TabsList className="grid w-full grid-cols-5 text-[11px]">
+          <TabsList className="grid w-full grid-cols-4 text-[11px]">
             <TabsTrigger value="apariencia">Apariencia</TabsTrigger>
-            <TabsTrigger value="modelo">Modelo</TabsTrigger>
             <TabsTrigger value="modelos">Modelos</TabsTrigger>
             <TabsTrigger value="github">GitHub</TabsTrigger>
             <TabsTrigger value="navegador">Navegador</TabsTrigger>
@@ -72,11 +70,8 @@ export function SettingsSheet({
             <TabsContent value="apariencia">
               <AppearanceTab />
             </TabsContent>
-            <TabsContent value="modelo">
-              <ModelTab draft={draft} patch={patch} />
-            </TabsContent>
             <TabsContent value="modelos">
-              <ModelsTab />
+              <ModelsTab draft={draft} patch={patch} />
             </TabsContent>
             <TabsContent value="github">
               <GithubTab draft={draft} patch={patch} />
