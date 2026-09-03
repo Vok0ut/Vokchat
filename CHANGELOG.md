@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.3 — revierte la tipografía terminal y corrige contraste en modo claro
+
+### Corregido
+
+- **Modo claro poco legible**: todas las clases de color de texto con modificador de opacidad (`text-foreground/NN`, `text-muted-foreground/NN`) del composer quedaban bien en modo oscuro pero muy lavadas/apenas visibles en modo claro (mezclar opacidad sobre un color produce un resultado distinto según el fondo de cada tema). Se sustituyen por los tokens de tema sin opacidad (`text-foreground`/`text-muted-foreground`), que ya están calibrados correctamente en ambos temas. Afecta al placeholder del composer, al nombre del modelo activo, a la etiqueta de creatividad, al desplegable de modelos y a los botones de cerrar/quitar adjunto.
+
+### Cambiado
+
+- **Se revierte la tipografía terminal** (JetBrains Mono) introducida en v2.2: chocaba visualmente con el resto del sistema de diseño (esquinas muy redondeadas, sombras suaves, estética "AI chat input"). Vuelve Geist Sans como fuente por defecto.
+
 ## v2.2 — icono PWA corregido, tipografía terminal y fondo personalizado
 
 ### Corregido
