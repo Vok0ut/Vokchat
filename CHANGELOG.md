@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.0 — migración a Next.js + TypeScript + Tailwind + shadcn/ui
+
+### Cambiado
+
+- **Reescritura completa del frontend**: Vok Chat deja de ser un `index.html` estático sin build y pasa a ser una app Next.js 16 (App Router) + React 19 + TypeScript, con Tailwind CSS v4 y componentes shadcn/ui (estilo «New York»). Todo el estado sigue viviendo en `localStorage` con las mismas claves y formas exactas que antes (`nimchat.cfg.v1`, `nimchat.convs.v1`, `vok.models.v1`, con la misma distinción crítica `null`/`[]` en el catálogo), así que nadie pierde ajustes, catálogo ni historial al migrar. Las integraciones externas (NVIDIA NIM vía proxy CORS, Supabase para la semilla del catálogo) no se reconfiguran: mismos endpoints, mismas claves.
+- **Nueva identidad visual**: se abandona la estética terminal (ASCII, corchetes, scanlines, grano, fondo personalizado) por una interfaz clara con tarjetas de sombra suave, esquinas muy redondeadas y transiciones tipo resorte, con modo claro/oscuro/sistema (`next-themes`) y un color de acento personalizable como único remanente de personalización visual (nueva clave `vok.appearance.v1`; `vok.look.v1` queda huérfana sin migrarse activamente).
+- **Composer rediseñado**: nuevo composer expandible en píldora con selector de modelo y de «creatividad» (3 niveles de `temperature`, con el valor numérico exacto seguro accesible en Ajustes → Modelo), grabación de voz real (Web Speech API, sin fallback simulado — si el navegador no la soporta, la entrada de voz queda deshabilitada) y adjuntos de imagen reales enviados como contenido multi-parte estilo OpenAI a los modelos.
+
+### Técnico
+
+- Loop de streaming SSE, loop de `tool_calls` con detección de bucle, herramientas de GitHub (con confirmación de escritura ahora vía `AlertDialog` asíncrono en vez de `confirm()` bloqueante), bridge MCP y exportar/importar historial se portan sin cambios de comportamiento.
+- Los stores de `localStorage` (`useSettings`, `useModelCatalog`, `useConversations`, `useAppearance`) se implementan como una única instancia compartida por `Context`, para que guardar en Ajustes sea visible de inmediato en el resto de la app.
+
 ## v1.9 — vuelta a la estética terminal + Ajustes rediseñado + selector rápido de modelo
 
 ### Cambiado
