@@ -8,9 +8,10 @@ export const APPEARANCE_KEY = "vok.appearance.v1";
 
 interface Appearance {
   accent: string | null;
+  backgroundImage: string | null;
 }
 
-const DEFAULT_APPEARANCE: Appearance = { accent: null };
+const DEFAULT_APPEARANCE: Appearance = { accent: null, backgroundImage: null };
 
 /** Calcula un color de texto legible (blanco o casi-negro) para un fondo dado. */
 function idealForeground(hex: string): string {
@@ -24,7 +25,9 @@ function idealForeground(hex: string): string {
 
 interface AppearanceContextValue {
   accent: string | null;
+  backgroundImage: string | null;
   setAccent: (accent: string | null) => void;
+  setBackgroundImage: (backgroundImage: string | null) => void;
   hydrated: boolean;
 }
 
@@ -48,11 +51,24 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
     }
   }, [appearance.accent, hydrated]);
 
-  const setAccent = useCallback((accent: string | null) => setAppearance({ accent }), [setAppearance]);
+  const setAccent = useCallback(
+    (accent: string | null) => setAppearance((prev) => ({ ...prev, accent })),
+    [setAppearance],
+  );
+  const setBackgroundImage = useCallback(
+    (backgroundImage: string | null) => setAppearance((prev) => ({ ...prev, backgroundImage })),
+    [setAppearance],
+  );
 
   const value = React.useMemo(
-    () => ({ accent: appearance.accent, setAccent, hydrated }),
-    [appearance.accent, setAccent, hydrated],
+    () => ({
+      accent: appearance.accent,
+      backgroundImage: appearance.backgroundImage,
+      setAccent,
+      setBackgroundImage,
+      hydrated,
+    }),
+    [appearance.accent, appearance.backgroundImage, setAccent, setBackgroundImage, hydrated],
   );
 
   return <AppearanceContext.Provider value={value}>{children}</AppearanceContext.Provider>;

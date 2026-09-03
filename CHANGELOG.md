@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.2 — icono PWA corregido, tipografía terminal y fondo personalizado
+
+### Corregido
+
+- **Icono al instalar en el móvil**: el manifest solo declaraba los iconos con `purpose: "maskable"`, así que Android/Chrome les aplicaba un recorte adaptativo (círculo/squircle) que dejaba el logo parcialmente cortado al instalar la app. Ahora cada tamaño (192 y 512) tiene también una variante `purpose: "any"`, que se instala sin recortar.
+
+### Cambiado
+
+- **Tipografía terminal**: toda la interfaz (cabecera, botones, burbujas de chat, composer, Ajustes) pasa a usar JetBrains Mono como fuente por defecto, dando más identidad "de terminal" sin tocar el resto del sistema de diseño (colores, espaciados, componentes shadcn).
+
+### Añadido
+
+- **Fondo personalizado**: de vuelta en Ajustes → Apariencia (existía en la versión vanilla-JS y se había descartado en la migración a Next.js). Se puede elegir una imagen del dispositivo; se guarda como URL de datos en `localStorage` (solo en este navegador) y se muestra fija al 60% de opacidad detrás del chat, sin tapar la legibilidad de cabecera, composer ni hojas de Ajustes/Historial.
+
 ## v2.1 — clave de API por modelo
 
 ### Cambiado
