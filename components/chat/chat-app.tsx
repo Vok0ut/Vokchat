@@ -9,6 +9,8 @@ import { HistorySheet } from "@/components/history/history-sheet";
 import { useChat } from "@/hooks/useChat";
 import { useSettings } from "@/hooks/useSettings";
 import { useModelCatalog } from "@/hooks/useModelCatalog";
+import { useAppearance } from "@/hooks/useAppearance";
+import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/lib/types";
 
 export function ChatApp() {
@@ -18,6 +20,7 @@ export function ChatApp() {
 
   const { settings, updateSettings } = useSettings();
   const { catalog } = useModelCatalog();
+  const { backgroundImage } = useAppearance();
 
   const openSettingsAt = (tab?: string) => {
     setSettingsInitialTab(tab);
@@ -27,7 +30,14 @@ export function ChatApp() {
   const chat = useChat({ onMissingKey: () => openSettingsAt("modelos") });
 
   return (
-    <div className="flex h-dvh flex-col bg-background">
+    <div className={cn("flex h-dvh flex-col", !backgroundImage && "bg-background")}>
+      {backgroundImage && (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center opacity-60"
+          style={{ backgroundImage: `url(${backgroundImage})` }}
+        />
+      )}
       <Header
         catalog={catalog}
         activeModelId={settings.model}
