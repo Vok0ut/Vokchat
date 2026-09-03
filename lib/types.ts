@@ -5,10 +5,11 @@ export interface CatalogModel {
   name: string;
   modelId: string;
   category: ModelCategory;
+  /** Clave NIM propia de este modelo. "" si aún no está configurada. */
+  apiKey: string;
 }
 
 export interface Settings {
-  nimKey: string;
   model: string;
   proxy: string;
   systemPrompt: string;

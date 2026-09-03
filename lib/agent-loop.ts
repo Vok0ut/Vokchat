@@ -52,6 +52,7 @@ export interface AgentLoopResult {
  */
 export async function agentLoop(
   cfg: Settings,
+  apiKey: string,
   messages: ChatMessage[],
   signal: AbortSignal,
   callbacks: AgentLoopCallbacks,
@@ -72,7 +73,7 @@ export async function agentLoop(
       }
     }
 
-    const msg = await callModel(cfg, working, tools, signal, callbacks.onDelta);
+    const msg = await callModel(cfg, apiKey, working, tools, signal, callbacks.onDelta);
 
     if (msg.tool_calls && msg.tool_calls.length) {
       const sig = toolCallSignature(msg.tool_calls);

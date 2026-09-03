@@ -49,6 +49,7 @@ interface SseChunk {
  */
 export async function callModel(
   cfg: Settings,
+  apiKey: string,
   messages: ChatMessage[],
   tools: ToolDef[],
   signal: AbortSignal,
@@ -66,7 +67,7 @@ export async function callModel(
 
   const r = await fetch(endpoint, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.nimKey}` },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify(body),
     signal,
   });
@@ -139,11 +140,16 @@ export async function callModel(
  * images.generate() de OpenAI — sin verificar contra la API real de NVIDIA NIM
  * (ningún modelo del catálogo por defecto se ha probado end-to-end contra la API real).
  */
-export async function generateImage(cfg: Settings, prompt: string, signal: AbortSignal): Promise<string> {
+export async function generateImage(
+  cfg: Settings,
+  apiKey: string,
+  prompt: string,
+  signal: AbortSignal,
+): Promise<string> {
   const endpoint = `${apiBase(cfg)}/v1/images/generations`;
   const r = await fetch(endpoint, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.nimKey}` },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ model: cfg.model, prompt, n: 1, response_format: "b64_json" }),
     signal,
   });
@@ -159,7 +165,8 @@ export async function generateImage(cfg: Settings, prompt: string, signal: Abort
 
 export function describeError(e: unknown): string {
   const msg = String((e as Error)?.message || e || "error desconocido");
-  if (/API 401/.test(msg)) return "clave de NVIDIA NIM invalida o vencida (401). Revisa Ajustes > Modelo.";
+  if (/API 401/.test(msg))
+    return "clave de NVIDIA NIM invalida o vencida (401). Revisa Ajustes > Modelos y la clave de este modelo.";
   if (/API 403/.test(msg)) return "acceso denegado (403). Revisa permisos de la clave/token.";
   if (/API 429/.test(msg)) return "limite de peticiones alcanzado (429). Espera un momento y reintenta.";
   if (/Failed to fetch|NetworkError|Load failed/i.test(msg))

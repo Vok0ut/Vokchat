@@ -19,18 +19,21 @@ export const DEFAULT_MODELS: CatalogModel[] = [
     name: "Kimi K3",
     modelId: "moonshotai/kimi-k2-instruct",
     category: "codigo",
+    apiKey: "",
   },
   {
     id: "seed-llama",
     name: "Llama 3.3 70B Instruct",
     modelId: "meta/llama-3.3-70b-instruct",
     category: "razonamiento",
+    apiKey: "",
   },
   {
     id: "seed-flux",
     name: "Flux.2 Klein 4B",
     modelId: "black-forest-labs/flux.2-klein-4b",
     category: "imagen",
+    apiKey: "",
   },
 ];
 
@@ -57,6 +60,7 @@ export async function fetchSupabaseSeed(): Promise<CatalogModel[]> {
     name: row.name,
     modelId: row.model_id,
     category: row.category as ModelCategory,
+    apiKey: "",
   }));
 }
 
