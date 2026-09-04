@@ -76,6 +76,35 @@ test("resetToDefaults reemplaza el catálogo completo por DEFAULT_MODELS (borra 
   assert.deepEqual(result.current.catalog, DEFAULT_MODELS);
 });
 
+test("importModels agrega modelos nuevos y actualiza la clave de los que ya existen, preservando el orden", async () => {
+  localStorage.setItem(
+    MODELS_KEY,
+    JSON.stringify([{ id: "m1", name: "Uno", modelId: "vendor/uno", category: "codigo", apiKey: "clave-vieja" }]),
+  );
+  const { result } = renderHook(() => useModelCatalog(), { wrapper });
+  await waitFor(() => assert.equal(result.current.hydrated, true));
+
+  let outcome!: { added: number; updated: number };
+  act(() => {
+    outcome = result.current.importModels(
+      [
+        { name: "vendor/uno", modelId: "vendor/uno", category: "razonamiento" },
+        { name: "vendor/dos", modelId: "vendor/dos", category: "imagen" },
+      ],
+      "clave-cuenta",
+    );
+  });
+
+  assert.deepEqual(outcome, { added: 1, updated: 1 });
+  assert.equal(result.current.catalog.length, 2);
+  assert.equal(result.current.catalog[0].modelId, "vendor/uno", "el modelo existente conserva su posición");
+  assert.equal(result.current.catalog[0].apiKey, "clave-cuenta");
+  assert.equal(result.current.catalog[0].name, "Uno", "actualizar no debe pisar el nombre que ya tenía");
+  assert.equal(result.current.catalog[1].modelId, "vendor/dos");
+  assert.equal(result.current.catalog[1].apiKey, "clave-cuenta");
+  assert.equal(result.current.catalog[1].category, "imagen");
+});
+
 test("migración: la clave legada (nimchat.cfg.v1.nimKey) rellena solo los modelos sin apiKey propia", async () => {
   localStorage.setItem(CFG_KEY, JSON.stringify({ nimKey: "clave-legada" }));
   localStorage.setItem(

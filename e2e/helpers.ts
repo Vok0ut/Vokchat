@@ -80,6 +80,20 @@ export async function mockChatCompletion(
   });
 }
 
+/** Simula GET /v1/models (usado por "Conectar cuenta NIM") — lista de ids, o error. */
+export async function mockAccountModels(page: Page, opts: { status?: number; body?: string; ids?: string[] }) {
+  await page.route("https://integrate.api.nvidia.com/v1/models", (route) => {
+    if (opts.status && opts.status !== 200) {
+      return route.fulfill({ status: opts.status, body: opts.body ?? "error" });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: (opts.ids ?? []).map((id) => ({ id, object: "model" })) }),
+    });
+  });
+}
+
 /** Simula /v1/images/generations — éxito con un PNG base64 mínimo, o error. */
 export async function mockImageGeneration(page: Page, opts: { status?: number; body?: string }) {
   const TINY_PNG_B64 =

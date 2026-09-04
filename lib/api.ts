@@ -164,6 +164,27 @@ export async function generateImage(
   return b64 as string;
 }
 
+/**
+ * Lista los modelos disponibles para una clave de cuenta NIM (`GET /v1/models`,
+ * formato estándar compatible-OpenAI). Usado por "Conectar cuenta NIM" en
+ * Ajustes > Modelos para poblar el catálogo con una sola clave, en vez de
+ * cargar cada modelo a mano.
+ */
+export async function fetchAccountModels(cfg: Settings, apiKey: string): Promise<string[]> {
+  const endpoint = `${apiBase(cfg)}/v1/models`;
+  const r = await fetch(endpoint, { headers: { Authorization: `Bearer ${apiKey}` } });
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    throw new Error(`API ${r.status}: ${t.slice(0, 300)}`);
+  }
+  const data = await r.json().catch(() => null);
+  const list = data && Array.isArray(data.data) ? data.data : null;
+  if (!list) throw new Error("Respuesta inesperada de la API de modelos (sin data[]).");
+  return list
+    .map((m: { id?: unknown }) => m.id)
+    .filter((id: unknown): id is string => typeof id === "string" && id.length > 0);
+}
+
 export function describeError(e: unknown): string {
   const msg = String((e as Error)?.message || e || "error desconocido");
   if (/API 401/.test(msg))

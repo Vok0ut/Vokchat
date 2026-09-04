@@ -64,6 +64,40 @@ export async function fetchSupabaseSeed(): Promise<CatalogModel[]> {
   }));
 }
 
+// Heurística de "Conectar cuenta NIM" (Ajustes > Modelos): la API de NVIDIA NIM no
+// expone un campo de tipo en /v1/models, así que se infiere por el nombre del id,
+// igual que hacen otras herramientas de la comunidad contra el mismo catálogo.
+// Deliberadamente imperfecta: lo que no matchea claramente se omite en vez de
+// adivinar mal (el usuario puede sumarlo a mano con el formulario existente).
+const EXCLUDE_HINTS = [
+  "embed", "rerank", "guard", "safety", "moderation", "asr", "riva", "parakeet",
+  "canary", "diariz", "tts", "ocr", "retriev", "translat", "clip", "colbert", "e5-",
+  "esm", "alphafold", "openfold", "diffdock", "boltz", "rfdiffusion", "proteinmpnn",
+  "molmim", "genmol", "evo2", "bionemo", "cosmos", "video", "physics", "earth2",
+];
+const IMAGE_HINTS = ["flux", "stable-diffusion", "sdxl", "sd3", "kolors", "dall-e", "playground-v", "sana"];
+const CODE_HINTS = ["code", "coder", "codestral", "starcoder", "copilot"];
+const CHAT_HINTS = [
+  "instruct", "chat", "reason", "thinking", "nemotron", "llama", "mixtral", "mistral",
+  "qwen", "gemma", "phi-", "gpt-oss", "hermes", "deepseek", "kimi", "grok", "command",
+  "jamba", "granite", "falcon", "glm", "internlm", "vicuna",
+];
+
+/**
+ * Adivina la categoría de un modelo NIM por su id (p.ej. "meta/llama-3.3-70b-instruct").
+ * Devuelve null si no matchea nada reconocible o si matchea algo claramente no-chat/
+ * no-imagen (embeddings, ASR/TTS, moderación, biología, etc.) — el llamador debe
+ * omitir esos en vez de importarlos.
+ */
+export function guessModelCategory(modelId: string): ModelCategory | null {
+  const id = modelId.toLowerCase();
+  if (EXCLUDE_HINTS.some((h) => id.includes(h))) return null;
+  if (IMAGE_HINTS.some((h) => id.includes(h))) return "imagen";
+  if (CODE_HINTS.some((h) => id.includes(h))) return "codigo";
+  if (CHAT_HINTS.some((h) => id.includes(h))) return "razonamiento";
+  return null;
+}
+
 /** Pure selector: find the catalog category for a given model id, or null if unknown. */
 export function getModelCategory(
   catalog: CatalogModel[] | null,

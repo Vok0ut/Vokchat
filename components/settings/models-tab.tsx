@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./status-badge";
 import { useModelCatalog } from "@/hooks/useModelCatalog";
 import { useConfirm } from "@/hooks/useConfirm";
-import { MODEL_CATEGORIES } from "@/lib/models-catalog";
+import { MODEL_CATEGORIES, guessModelCategory } from "@/lib/models-catalog";
+import { fetchAccountModels, describeError } from "@/lib/api";
 import type { ModelCategory, Settings } from "@/lib/types";
 
 const CATEGORIES: ModelCategory[] = ["codigo", "razonamiento", "imagen"];
@@ -43,7 +44,7 @@ function cors() {
 }`;
 
 export function ModelsTab({ draft, patch }: { draft: Settings; patch: (p: Partial<Settings>) => void }) {
-  const { catalog, addModel, removeModel, updateModel, resetToDefaults } = useModelCatalog();
+  const { catalog, addModel, removeModel, updateModel, resetToDefaults, importModels } = useModelCatalog();
   const confirm = useConfirm();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [workerOpen, setWorkerOpen] = useState(false);
@@ -51,6 +52,9 @@ export function ModelsTab({ draft, patch }: { draft: Settings; patch: (p: Partia
   const [modelId, setModelId] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [category, setCategory] = useState<ModelCategory>("codigo");
+  const [connectApiKey, setConnectApiKey] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [connectResult, setConnectResult] = useState<string | null>(null);
 
   const handleAdd = () => {
     if (!name.trim() || !modelId.trim() || !apiKey.trim()) {
@@ -71,6 +75,44 @@ export function ModelsTab({ draft, patch }: { draft: Settings; patch: (p: Partia
   const handleReset = async () => {
     const ok = await confirm({ title: "¿Restaurar valores por defecto?", description: "Se reemplazará tu catálogo actual por los 3 modelos por defecto." });
     if (ok) resetToDefaults();
+  };
+
+  const handleConnect = async () => {
+    const key = connectApiKey.trim();
+    if (!key) return;
+    setConnecting(true);
+    setConnectResult(null);
+    try {
+      const ids = await fetchAccountModels(draft, key);
+      const imported = ids
+        .map((id) => {
+          const guessed = guessModelCategory(id);
+          return guessed ? { name: id, modelId: id, category: guessed } : null;
+        })
+        .filter((m): m is { name: string; modelId: string; category: ModelCategory } => m !== null);
+
+      if (!imported.length) {
+        setConnectResult("No se encontraron modelos de chat o imagen reconocibles en tu cuenta.");
+        return;
+      }
+
+      const existingIds = new Set(catalog.map((m) => m.modelId));
+      const toAdd = imported.filter((m) => !existingIds.has(m.modelId)).length;
+      const toUpdate = imported.length - toAdd;
+      const ok = await confirm({
+        title: "¿Importar modelos de esta cuenta?",
+        description: `Se añadirán ${toAdd} modelos nuevos${toUpdate ? ` y se actualizará la clave de ${toUpdate} modelos que ya tenés en el catálogo` : ""}.`,
+      });
+      if (!ok) return;
+
+      const { added, updated } = importModels(imported, key);
+      setConnectResult(`Se importaron ${added} modelos nuevos, ${updated} actualizados.`);
+      setConnectApiKey("");
+    } catch (e) {
+      setConnectResult("Error: " + describeError(e));
+    } finally {
+      setConnecting(false);
+    }
   };
 
   return (
@@ -178,6 +220,31 @@ export function ModelsTab({ draft, patch }: { draft: Settings; patch: (p: Partia
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border p-4">
+        <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Conectar cuenta NIM</div>
+        <p className="text-xs text-muted-foreground">
+          Pega tu clave de build.nvidia.com y se importan automáticamente los modelos de chat, código/razonamiento e
+          imagen disponibles en tu cuenta (se omiten los que no sirven para chatear ni generar imágenes, p. ej.
+          embeddings o moderación). La misma clave se usa para todos los importados; podés editar cada una por
+          separado después.
+        </p>
+        <div className="flex gap-2">
+          <Input
+            type="password"
+            placeholder="nvapi-…"
+            autoComplete="off"
+            value={connectApiKey}
+            onChange={(e) => setConnectApiKey(e.target.value)}
+            className="flex-1"
+            aria-label="Clave API para conectar cuenta NIM"
+          />
+          <Button onClick={handleConnect} disabled={connecting || !connectApiKey.trim()}>
+            {connecting ? "Cargando…" : "Cargar modelos"}
+          </Button>
+        </div>
+        {connectResult && <p className="text-xs text-muted-foreground">{connectResult}</p>}
       </div>
 
       <div className="flex flex-col gap-3 rounded-2xl border p-4">
