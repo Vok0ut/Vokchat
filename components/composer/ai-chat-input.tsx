@@ -142,7 +142,7 @@ function AttachmentThumb({
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
           onClick={(e) => { e.stopPropagation(); onRemove(attachment.id); }}
           className={cn(
-            "m-1 flex size-4 items-center justify-center rounded-full bg-background/90 text-foreground/70 shadow-sm transition-all duration-200 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] hover:bg-background hover:text-foreground hover:scale-110",
+            "m-1 flex size-4 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition-all duration-200 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] hover:bg-background hover:text-foreground hover:scale-110",
             isHovered ? "opacity-100 scale-100" : "opacity-0 scale-50 pointer-events-none",
           )}
           aria-label={`Quitar ${attachment.name}`}
@@ -486,7 +486,7 @@ export function PromptInput({
                 : "opacity 0.3s ease-out, transform 0.3s ease-out, height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
             }}
             className={cn(
-              "prompt-scrollbar absolute inset-x-0 top-0 z-[1] w-full resize-none bg-transparent py-3.5 pr-12 pl-4 text-sm leading-[22px] text-foreground outline-none placeholder:font-medium placeholder:text-muted-foreground/80",
+              "prompt-scrollbar absolute inset-x-0 top-0 z-[1] w-full resize-none bg-transparent py-3.5 pr-12 pl-4 text-sm leading-[22px] text-foreground outline-none placeholder:font-medium placeholder:text-muted-foreground",
               expanded ? "translate-y-0 scale-100 opacity-100" : "pointer-events-none -translate-y-1 scale-95 opacity-0",
               isScrolling ? "overflow-y-auto" : "overflow-y-hidden",
               isRecording && "pointer-events-none",
@@ -505,7 +505,7 @@ export function PromptInput({
             onClick={expand}
             style={{ transition: isSmoothResize ? "none" : "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)" }}
             className={cn(
-              "absolute inset-x-0 top-0 z-[1] cursor-text py-[15px] pr-12 pl-4 text-left text-sm font-medium leading-[17px] text-muted-foreground/80 outline-none",
+              "absolute inset-x-0 top-0 z-[1] cursor-text py-[15px] pr-12 pl-4 text-left text-sm font-medium leading-[17px] text-muted-foreground outline-none",
               !expanded ? "translate-y-0 scale-100 opacity-100" : "pointer-events-none translate-y-1 scale-105 opacity-0",
             )}
             aria-label="Abrir el campo de mensaje"
@@ -525,7 +525,7 @@ export function PromptInput({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={(e) => { e.stopPropagation(); setIsModelSelectOpen((prev) => !prev); }}
                 className={cn(
-                  "group flex items-center gap-1 rounded-full px-2 py-1 text-foreground/50 transition-all duration-200 outline-none hover:bg-accent/60 hover:text-foreground",
+                  "group flex items-center gap-1 rounded-full px-2 py-1 text-muted-foreground transition-all duration-200 outline-none hover:bg-accent/60 hover:text-foreground",
                   isModelSelectOpen && "bg-accent/60 text-foreground",
                 )}
                 aria-label={`Elegir modelo. Actual: ${activeModel?.name || activeModelId}`}
@@ -571,7 +571,7 @@ export function PromptInput({
                         onClick={(e) => { e.stopPropagation(); onModelChange(m.modelId); setIsModelSelectOpen(false); }}
                         className="group relative flex h-9 w-full flex-col items-start justify-center gap-0 rounded-xl px-2.5 py-1 text-left outline-none active:scale-[0.98]"
                       >
-                        <span className="flex items-center gap-2 text-xs font-medium text-foreground/80">
+                        <span className="flex items-center gap-2 text-xs font-medium text-foreground">
                           <Icon className="size-3.5 opacity-85 transition-opacity group-hover:opacity-100" />
                           {m.name}
                         </span>
@@ -587,7 +587,7 @@ export function PromptInput({
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={cycleTemperature}
-              className="group flex items-center gap-1 rounded-full px-2 py-1 text-foreground/50 outline-none transition-all duration-200 hover:bg-accent/60 hover:text-foreground"
+              className="group flex items-center gap-1 rounded-full px-2 py-1 text-muted-foreground outline-none transition-all duration-200 hover:bg-accent/60 hover:text-foreground"
               aria-label="Nivel de creatividad (temperature)"
             >
               <DynamicBarsIcon level={temperatureLevel} />
@@ -601,7 +601,7 @@ export function PromptInput({
               onMouseDown={(e) => e.preventDefault()}
               onClick={openFileChooser}
               disabled={attachments.length >= maxAttachments}
-              className="ml-auto flex size-7 items-center justify-center rounded-full text-foreground/50 outline-none transition-all duration-200 hover:bg-accent/60 hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              className="ml-auto flex size-7 items-center justify-center rounded-full text-muted-foreground outline-none transition-all duration-200 hover:bg-accent/60 hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
               aria-label="Adjuntar imagen"
             >
               <Plus className="size-3.5" />
@@ -726,7 +726,7 @@ function AttachmentGalleryModal({
         onClick={handleClose}
         style={{ opacity: isOpen ? 1 : 0, transform: isOpen ? "scale(1)" : "scale(0.7)" }}
         className={cn(
-          "fixed right-4 top-4 flex size-9 items-center justify-center rounded-full bg-card/90 text-foreground/70 shadow-md backdrop-blur-sm",
+          "fixed right-4 top-4 flex size-9 items-center justify-center rounded-full bg-card/90 text-muted-foreground shadow-md backdrop-blur-sm",
           "transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] hover:bg-card hover:text-foreground",
           !isOpen && "pointer-events-none",
         )}
