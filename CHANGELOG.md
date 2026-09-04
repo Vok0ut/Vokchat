@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.7 — corrige el 405 de "Conectar cuenta NIM" contra el proxy Cloudflare Worker
+
+### Corregido
+
+- **"Conectar cuenta NIM" daba `API 405`** cuando el usuario tenía configurado
+  el proxy CORS (Cloudflare Worker) documentado en Ajustes → Modelos: el
+  código de ese Worker reenviaba **todas** las peticiones como `POST`
+  siempre, algo que no importaba mientras la app solo llamaba a
+  `/v1/chat/completions` y `/v1/images/generations` (ambos POST). La v2.6
+  agregó una llamada `GET /v1/models`, que el Worker seguía reenviando como
+  `POST` — y NVIDIA responde `405 Method Not Allowed` a un `POST` contra
+  `/v1/models`. Se corrige la plantilla del Worker para que reenvíe el
+  método real de la petición entrante (y se permite `GET` en
+  `Access-Control-Allow-Methods`).
+
+  **Importante — acción manual requerida**: este fix corrige la plantilla
+  que muestra la app, pero **no** actualiza el Worker que ya tengas
+  desplegado en tu propia cuenta de Cloudflare. Si ya usás un proxy y ves
+  este error 405, tenés que copiar el código actualizado desde Ajustes →
+  Modelos → "Código del proxy · Cloudflare Worker" y pegarlo en tu Worker
+  existente (mismo nombre/URL, solo se reemplaza el código).
+
 ## v2.6 — Conectar cuenta NIM (importar varios modelos con una sola clave)
 
 ### Añadido
