@@ -5,6 +5,7 @@ export function apiBase(cfg: Settings): string {
 }
 
 export function clampNum(v: number | null | undefined, fallback: number, min: number, max: number): number {
+  if (v === null || v === undefined) return fallback;
   const n = Number(v);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, n));

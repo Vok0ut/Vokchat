@@ -1,5 +1,37 @@
 # Changelog
 
+## v2.5 — suite de pruebas automatizadas (unit + E2E + CI)
+
+### Añadido
+
+- **Tests unitarios (Vitest)**: cobertura de toda la lógica pura de `lib/`
+  (`api.ts`, `agent-loop.ts`, `models-catalog.ts`, `github.ts`, `bridge.ts`,
+  `utils.ts`) y de los hooks con estado en `localStorage` (`useSettings`,
+  `useModelCatalog`, `useAppearance`, `useConversations`, `useChat`,
+  `useLocalStorageStore`), 65 casos en total. `npm test` / `npm run
+  test:watch`.
+- **Tests end-to-end (Playwright)**: 23 casos que simulan flujos reales de
+  usuario en un navegador headless — primer arranque y siembra del
+  catálogo, envío de mensajes (éxito, errores 401/404/410/429/500, fallo de
+  red, falta de clave), generación de imágenes, edición del catálogo de
+  modelos, apariencia (acento y fondo personalizado), historial de
+  conversaciones, manifest de la PWA y contraste en modo claro. Las
+  llamadas a NVIDIA/Supabase se interceptan con `page.route()`; nunca se
+  usan claves ni red reales. `npm run test:e2e`.
+- **CI en GitHub Actions** (`.github/workflows/test.yml`): lint + tests
+  unitarios, tests E2E, y las suites `node:test` ya existentes de
+  `mcp-bridge`/`web-worker` corren en cada push y pull request.
+
+### Corregido
+
+- **`clampNum(null, ...)` no aplicaba el valor por defecto**: `Number(null)`
+  es `0` (un valor finito), así que un `null` explícito se colaba como `0`
+  y quedaba recortado al mínimo del rango en vez de usar el fallback
+  documentado por la firma de la función.
+- Esta rama también incorpora el fix de `moonshotai/kimi-k3` (ver v2.4) para
+  que el propio catálogo por defecto usado en las pruebas ya no apunte al
+  modelo retirado por NVIDIA.
+
 ## v2.4 — corrige el modelo "Kimi K3" muerto en el catálogo
 
 ### Corregido

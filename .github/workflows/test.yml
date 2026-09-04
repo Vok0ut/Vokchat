@@ -1,0 +1,47 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-and-unit:
+    name: Lint + tests unitarios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+
+  e2e:
+    name: Tests end-to-end (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+  sibling-services:
+    name: Tests de mcp-bridge y web-worker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Ambos paquetes prueban funciones puras que no dependen de sus paquetes npm
+      # (@modelcontextprotocol/sdk, express) — node --test corre directo, sin install.
+      - run: npm test
+        working-directory: mcp-bridge
+      - run: npm test
+        working-directory: web-worker
