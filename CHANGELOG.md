@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.6 — Conectar cuenta NIM (importar varios modelos con una sola clave)
+
+### Añadido
+
+- **"Conectar cuenta NIM"** en Ajustes → Modelos: pegar una clave de
+  build.nvidia.com y la app llama a `GET /v1/models` (mismo endpoint que
+  usan herramientas como Hermes Agent para poblar su selector) para traer
+  automáticamente los modelos de chat, código/razonamiento e imagen
+  disponibles en esa cuenta, en vez de tener que cargarlos uno por uno.
+  Como la API de NVIDIA no indica el tipo de cada modelo, se infiere por
+  el nombre del id y se omiten los que claramente no son de chat ni de
+  imagen (embeddings, ASR/TTS, reranking, moderación/"guard", modelos de
+  biología, etc.) — esos no funcionarían con las dos únicas funciones que
+  llama esta app. Pide confirmación antes de aplicar mostrando cuántos
+  modelos son altas nuevas y cuántos actualizan la clave de uno ya
+  presente en el catálogo. El formulario para añadir un modelo específico
+  a mano sigue disponible tal cual.
+- Tests: `lib/__tests__/models-catalog.test.ts` y `lib/__tests__/api.test.ts`
+  amplían casos para la heurística de categoría y para `fetchAccountModels`;
+  `hooks/__tests__/useModelCatalog.test.tsx` cubre `importModels`; nuevo
+  caso E2E en `e2e/settings-models.spec.ts` con `GET /v1/models` mockeado.
+
 ## v2.5 — suite de pruebas automatizadas (unit + E2E + CI)
 
 ### Añadido

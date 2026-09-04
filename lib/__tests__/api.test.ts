@@ -1,6 +1,6 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
-import { apiBase, clampNum, systemPrompt, describeError, callModel, generateImage } from "../api";
+import { apiBase, clampNum, systemPrompt, describeError, callModel, generateImage, fetchAccountModels } from "../api";
 import type { Settings } from "../types";
 
 const BASE_CFG: Settings = {
@@ -162,6 +162,54 @@ test("generateImage lanza con el status si la respuesta no es OK", async () => {
         () => generateImage(BASE_CFG, "bad-key", "un gato", new AbortController().signal),
         /API 401: clave invalida/,
       );
+    },
+  );
+});
+
+test("fetchAccountModels devuelve la lista de ids del catálogo de la cuenta", async () => {
+  await withMockedFetch(
+    (async () =>
+      new Response(
+        JSON.stringify({
+          data: [
+            { id: "meta/llama-3.3-70b-instruct", object: "model" },
+            { id: "black-forest-labs/flux.1-dev", object: "model" },
+          ],
+        }),
+        { status: 200 },
+      )) as typeof fetch,
+    async () => {
+      const ids = await fetchAccountModels(BASE_CFG, "nvapi-test");
+      assert.deepEqual(ids, ["meta/llama-3.3-70b-instruct", "black-forest-labs/flux.1-dev"]);
+    },
+  );
+});
+
+test("fetchAccountModels ignora entradas sin id de string válido", async () => {
+  await withMockedFetch(
+    (async () =>
+      new Response(JSON.stringify({ data: [{ id: "vendor/valido" }, { id: 123 }, {}] }), { status: 200 })) as typeof fetch,
+    async () => {
+      const ids = await fetchAccountModels(BASE_CFG, "nvapi-test");
+      assert.deepEqual(ids, ["vendor/valido"]);
+    },
+  );
+});
+
+test("fetchAccountModels lanza con el status si la respuesta no es OK (p. ej. clave inválida)", async () => {
+  await withMockedFetch(
+    (async () => new Response("clave invalida", { status: 401 })) as typeof fetch,
+    async () => {
+      await assert.rejects(() => fetchAccountModels(BASE_CFG, "bad-key"), /API 401: clave invalida/);
+    },
+  );
+});
+
+test("fetchAccountModels lanza si la respuesta no trae data[]", async () => {
+  await withMockedFetch(
+    (async () => new Response(JSON.stringify({ oops: true }), { status: 200 })) as typeof fetch,
+    async () => {
+      await assert.rejects(() => fetchAccountModels(BASE_CFG, "nvapi-test"), /sin data\[\]/);
     },
   );
 });

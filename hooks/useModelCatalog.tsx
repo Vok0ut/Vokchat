@@ -37,6 +37,10 @@ interface ModelCatalogContextValue {
   removeModel: (id: string) => void;
   updateModel: (id: string, patch: Partial<Omit<CatalogModel, "id">>) => void;
   resetToDefaults: () => void;
+  importModels: (
+    models: { name: string; modelId: string; category: CatalogModel["category"] }[],
+    apiKey: string,
+  ) => { added: number; updated: number };
   hydrated: boolean;
 }
 
@@ -118,6 +122,32 @@ export function ModelCatalogProvider({ children }: { children: React.ReactNode }
 
   const resetToDefaults = useCallback(() => setCatalog(DEFAULT_MODELS.map((m) => ({ ...m }))), [setCatalog]);
 
+  const importModels = useCallback(
+    (models: { name: string; modelId: string; category: CatalogModel["category"] }[], apiKey: string) => {
+      // Un solo setCatalog para todo el lote (no N escrituras a localStorage/re-renders
+      // si "Conectar cuenta NIM" trae 30-80 modelos de una). Mismo modelId ya presente
+      // conserva su posición y solo actualiza la clave; uno nuevo se añade al final —
+      // Map preserva el orden de inserción y no reordena en un set() sobre clave existente.
+      const byModelId = new Map((catalog || []).map((m) => [m.modelId, m]));
+      let added = 0;
+      let updated = 0;
+      models.forEach((m, i) => {
+        const existing = byModelId.get(m.modelId);
+        if (existing) {
+          byModelId.set(m.modelId, { ...existing, apiKey });
+          updated++;
+        } else {
+          const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6) + i;
+          byModelId.set(m.modelId, { id, name: m.name, modelId: m.modelId, category: m.category, apiKey });
+          added++;
+        }
+      });
+      setCatalog(Array.from(byModelId.values()));
+      return { added, updated };
+    },
+    [catalog, setCatalog],
+  );
+
   const value = React.useMemo(
     () => ({
       catalog: catalog || [],
@@ -126,9 +156,10 @@ export function ModelCatalogProvider({ children }: { children: React.ReactNode }
       removeModel,
       updateModel,
       resetToDefaults,
+      importModels,
       hydrated,
     }),
-    [catalog, addModel, removeModel, updateModel, resetToDefaults, hydrated],
+    [catalog, addModel, removeModel, updateModel, resetToDefaults, importModels, hydrated],
   );
 
   return <ModelCatalogContext.Provider value={value}>{children}</ModelCatalogContext.Provider>;

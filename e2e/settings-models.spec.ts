@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { seedLocalStorage, defaultModel, mockSupabaseSeed } from "./helpers";
+import { seedLocalStorage, defaultModel, mockSupabaseSeed, mockAccountModels } from "./helpers";
 
 async function openModelsTab(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: "Ajustes" }).click();
@@ -58,4 +58,28 @@ test("restaurar valores por defecto reemplaza el catálogo y borra todas las cla
   await expect(panel.getByText("Modelo Custom")).toHaveCount(0);
   await expect(panel.getByText("Kimi K3")).toBeVisible();
   await expect(panel.getByText("Sin clave", { exact: true }).first()).toBeVisible();
+});
+
+test("conectar cuenta NIM importa modelos de chat/imagen y omite los que no son compatibles", async ({ page }) => {
+  await seedLocalStorage(page, { models: [] });
+  await mockAccountModels(page, {
+    ids: [
+      "meta/llama-3.3-70b-instruct",
+      "black-forest-labs/flux.1-dev",
+      "nvidia/nv-embedqa-e5-v5",
+      "meta/llama-guard-3-8b",
+    ],
+  });
+  await page.goto("/");
+  const panel = await openModelsTab(page);
+
+  await page.getByLabel("Clave API para conectar cuenta NIM").fill("nvapi-cuenta-test");
+  await page.getByRole("button", { name: "Cargar modelos" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Confirmar" }).click();
+
+  await expect(panel.getByText("meta/llama-3.3-70b-instruct", { exact: true })).toBeVisible();
+  await expect(panel.getByText("black-forest-labs/flux.1-dev", { exact: true })).toBeVisible();
+  await expect(panel.getByText("nvidia/nv-embedqa-e5-v5")).toHaveCount(0);
+  await expect(panel.getByText("meta/llama-guard-3-8b")).toHaveCount(0);
+  await expect(panel.getByText("Se importaron 2 modelos nuevos, 0 actualizados.")).toBeVisible();
 });
