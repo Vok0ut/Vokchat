@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.4 — corrige el modelo "Kimi K3" muerto en el catálogo
+
+### Corregido
+
+- **"Kimi K3" daba API 410 (Gone)**: el ID de modelo sembrado por defecto, `moonshotai/kimi-k2-instruct`, fue retirado por NVIDIA (fin de vida el 2026-05-12) y ya no responde. Se actualiza a `moonshotai/kimi-k3` (el modelo vigente que corresponde al nombre ya mostrado), tanto en el fallback local (`DEFAULT_MODELS`) como en la tabla de Supabase que siembra las instalaciones nuevas. Quien ya tenga el catálogo sembrado con el ID viejo debe borrar y volver a añadir esa entrada en Ajustes → Modelos (o usar "Restaurar valores por defecto"), ya que la corrección no reescribe catálogos ya guardados en `localStorage`.
+
 ## v2.3 — revierte la tipografía terminal y corrige contraste en modo claro
 
 ### Corregido

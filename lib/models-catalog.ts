@@ -17,7 +17,7 @@ export const DEFAULT_MODELS: CatalogModel[] = [
   {
     id: "seed-kimi",
     name: "Kimi K3",
-    modelId: "moonshotai/kimi-k2-instruct",
+    modelId: "moonshotai/kimi-k3",
     category: "codigo",
     apiKey: "",
   },
