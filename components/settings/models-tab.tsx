@@ -22,13 +22,14 @@ const WORKER_CODE = `export default {
       return new Response(null, { headers: cors() });
     const inUrl = new URL(req.url);
     const url = "https://integrate.api.nvidia.com" + inUrl.pathname + inUrl.search;
+    const hasBody = req.method !== "GET" && req.method !== "HEAD";
     const r = await fetch(url, {
-      method: "POST",
+      method: req.method,
       headers: {
         "Content-Type": "application/json",
         "Authorization": req.headers.get("Authorization") || ""
       },
-      body: req.body
+      body: hasBody ? req.body : undefined
     });
     const res = new Response(r.body, r);
     Object.entries(cors()).forEach(([k,v]) => res.headers.set(k,v));
@@ -39,7 +40,7 @@ function cors() {
   return {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS"
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
   };
 }`;
 
